@@ -28,7 +28,7 @@ const LEARNER = "Lena (new hire)";
 export default function TeachPage() {
   const { query } = useRouter();
   const [data, setData] = useState(null);
-  const { session, getAt } = useLiveSession(data?.workMap ? query.id : null, "teach", LEARNER);
+  const { session, getAt } = useLiveSession(data?.workMap ? data.workflow._id : null, "teach", LEARNER);
   const controlRef = useRef(null);
   const sandboxSeen = useRef(false);
   const [events, setEvents] = useState([]);

@@ -1,6 +1,7 @@
 import dbConnect from "@/lib/dbConnect";
 import Session from "@/backend/models/session";
 import Workflow from "@/backend/models/workflow";
+import { DEMO_ID, ensureDemoWorkflow } from "@/backend/services/demoWorkflow";
 
 const STATUS_FOR_KIND = { capture: "capturing", debrief: "debriefing", teach: "teaching" };
 
@@ -8,10 +9,12 @@ const STATUS_FOR_KIND = { capture: "capturing", debrief: "debriefing", teach: "t
 export default async function handler(req, res) {
   if (req.method !== "POST") return res.status(405).json({ error: "Method not allowed" });
 
-  const { workflowId, kind, participantName } = req.body || {};
+  const { kind, participantName } = req.body || {};
+  let { workflowId } = req.body || {};
 
-  // Instant demo fallback when workflowId is "demo" or database connection is unset
-  if (workflowId === "demo" || !process.env.MONGODB_URI) {
+  // No database: a placeholder session so the page renders. Live features
+  // (tutor, guardrail check) need a database.
+  if (!process.env.MONGODB_URI) {
     return res.status(201).json({
       session: {
         _id: "demo-session",
@@ -30,6 +33,7 @@ export default async function handler(req, res) {
 
   try {
     await dbConnect();
+    if (workflowId === DEMO_ID) workflowId = (await ensureDemoWorkflow())._id;
     const workflow = await Workflow.findById(workflowId);
     if (!workflow) return res.status(404).json({ error: "Workflow not found" });
     if (!STATUS_FOR_KIND[kind]) return res.status(400).json({ error: "kind must be capture, debrief or teach" });
