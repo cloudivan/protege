@@ -51,9 +51,10 @@ const TTS = {
 // The expert explains in German, the tutor may teach in English (stretch goal).
 const LANGUAGES = { de: { overrides: {} } };
 
-// Interviewer (Modules 1 + 2). Empty first message: in capture mode it must
-// stay silent until the page sends "PAUSE". Never re-engage on silence, since
-// silence is the expert working.
+// Interviewer (Modules 1 + 2). The first message comes from {{opening_line}}:
+// empty in capture mode (silent until the page sends "PAUSE"), a short opener
+// in debrief mode. Never re-engage on silence, since silence is the expert
+// working.
 const interviewerAgent = {
   name: "Protégé · Interviewer",
   conversation_config: {
@@ -61,7 +62,7 @@ const interviewerAgent = {
     tts: TTS,
     language_presets: LANGUAGES,
     agent: {
-      first_message: "",
+      first_message: "{{opening_line}}",
       prompt: {
         prompt: INTERVIEWER_PROMPT,
         llm: LLM,

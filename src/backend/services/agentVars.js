@@ -5,6 +5,11 @@
 export function buildInterviewerVars({ workflow, scenario, mode, workMap }) {
   return {
     mode, // "capture" | "debrief"
+    // The agent's first message: silent in capture, it opens the debrief.
+    opening_line:
+      mode === "debrief"
+        ? `Thanks${workflow.expertName ? ` ${workflow.expertName}` : ""}, that's the task done. I have a few questions before I explain the whole process back to you.`
+        : "",
     expert_name: workflow.expertName || "the expert",
     workflow_title: workflow.title,
     domain: scenario.domain,
