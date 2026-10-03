@@ -10,7 +10,7 @@ import LiveCaption from "@/components/voice/LiveCaption";
 const roundBtn =
   "flex h-8 w-8 items-center justify-center rounded-full transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-ring";
 
-export default function VoiceHud({ sampleRef, audioRef, status, caption, micMuted, onToggleMute, onEnd }) {
+export default function VoiceHud({ sampleRef, audioRef, status, caption, micMuted, onToggleMute, onEnd, position = "right-4 top-4" }) {
   const connected = status === "connected";
   const [mounted, setMounted] = useState(false);
   useEffect(() => setMounted(true), []);
@@ -18,7 +18,7 @@ export default function VoiceHud({ sampleRef, audioRef, status, caption, micMute
 
   // Portaled to <body> so no transformed parent can pull it out of the corner.
   return createPortal(
-    <div className="voice-halo pointer-events-none fixed right-4 top-4 z-50 flex w-64 animate-fadeIn flex-col items-center gap-1 px-6 pb-4 pt-5">
+    <div className={`voice-halo pointer-events-none fixed ${position} z-50 flex w-64 animate-fadeIn flex-col items-center gap-1 px-6 pb-4 pt-5`}>
       <VoiceBars sampleRef={sampleRef} className="h-14 w-24" />
 
       <LiveCaption

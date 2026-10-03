@@ -155,9 +155,10 @@ export default function TeachPage() {
             <p className="text-sm text-muted-foreground">
               A case {expertName} never showed. The tutor coaches in {expertName}&apos;s words and steps in before a guardrail is broken.
             </p>
-          </div>
-          <div className="font-mono text-xs text-muted-foreground">
-            Learner: <span className="font-semibold text-foreground">{LEARNER}</span>
+            {/* Left side on purpose: the top right corner holds the call bubble. */}
+            <p className="mt-1 font-mono text-xs text-muted-foreground">
+              Learner: <span className="font-semibold text-foreground">{LEARNER}</span>
+            </p>
           </div>
         </div>
 
@@ -204,7 +205,7 @@ export default function TeachPage() {
               )}
             </div>
 
-            {session && <ScreenShare sessionId={session._id} getAt={getAt} onEvents={onVisionEvents} shareRef={shareRef} hideUntilSharing />}
+            {session && <ScreenShare sessionId={session._id} getAt={getAt} onEvents={onVisionEvents} shareRef={shareRef} headless />}
             <EventFeed events={events} />
           </section>
 

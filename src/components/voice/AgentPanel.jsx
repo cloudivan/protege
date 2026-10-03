@@ -50,7 +50,7 @@ function Transcript({ turns }) {
 }
 
 // ---------------------------------------------------------------- real voice
-function RealPanel({ sessionId, getAt, clientTools, controlRef, onUserTurn, beforeStart, onEnd, showTranscript = false }) {
+function RealPanel({ sessionId, getAt, clientTools, controlRef, onUserTurn, beforeStart, onEnd, showTranscript = false, hudPosition }) {
   const [micMuted, setMicMuted] = useState(false);
   const [starting, setStarting] = useState(false);
   const [needsShare, setNeedsShare] = useState(false);
@@ -169,6 +169,7 @@ function RealPanel({ sessionId, getAt, clientTools, controlRef, onUserTurn, befo
             micMuted={micMuted}
             onToggleMute={() => setMicMuted((m) => !m)}
             onEnd={end}
+            position={hudPosition}
           />
           <p className="mt-4 flex items-center gap-2 text-sm text-muted-foreground">
             <span className={`h-2 w-2 rounded-full ${connected ? "bg-primary animate-pulse" : "bg-muted-foreground/50"}`} />

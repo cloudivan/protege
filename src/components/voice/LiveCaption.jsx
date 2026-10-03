@@ -1,7 +1,7 @@
 // The agent's latest line as short subtitles: a few words at a time, each
-// group replacing the last. Words follow her actual voice: a character clock
-// runs while her audio is audible, at her speech rate, so pauses in her speech
-// pause the words too. If her line arrives after she already started talking,
+// group replacing the last, no animation. Words follow her actual voice: a
+// character clock runs while her audio is audible, at her speech rate, so
+// pauses in her speech pause the words too. If her line arrives after she already started talking,
 // the clock starts where her voice is, not at zero.
 //
 // `audioRef.current()` returns { audible, since, cps }: whether her voice is
@@ -16,7 +16,8 @@ const FLUSH_CPS = 60;
 const HOLD_MS = 2200; // how long the last words stay
 
 export default function LiveCaption({ text, audioRef, placeholder = "", className = "" }) {
-  const words = useMemo(() => noEmDash(text).split(/\s+/).filter(Boolean), [text]);
+  // Voice tags such as [happy] steer her tone; they are not meant to be read.
+  const words = useMemo(() => noEmDash(text).replace(/\[[^\]]*\]/g, " ").split(/\s+/).filter(Boolean), [text]);
   // Character offset where each word starts.
   const starts = useMemo(() => {
     let n = 0;
@@ -79,15 +80,9 @@ export default function LiveCaption({ text, audioRef, placeholder = "", classNam
   return (
     <div className={`flex items-center justify-center text-center ${className}`}>
       {visible.length ? (
-        <p key={`${text}-${groupStart}`} className="leading-snug">
-          {visible.map((w, i) => (
-            <span key={i} className="word-in mr-[0.28em] inline-block last:mr-0">
-              {w}
-            </span>
-          ))}
-        </p>
+        <p className="leading-snug">{visible.join(" ")}</p>
       ) : (
-        placeholder && <p className="word-in text-muted-foreground">{placeholder}</p>
+        placeholder && <p className="text-muted-foreground">{placeholder}</p>
       )}
     </div>
   );

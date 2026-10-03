@@ -20,7 +20,9 @@ function thumbDiff(a, b) {
 // `shareRef` (optional) exposes start() so another control can open the picker.
 // start() resolves true once sharing, false if the user cancelled.
 // `hideUntilSharing` hides the card (and its Share button) until a share is live.
-export default function ScreenShare({ sessionId, getAt, onEvents, onSharingChange, shareRef, hideUntilSharing = false }) {
+// `headless` never shows the card: the share runs, frames are still read from
+// an invisible video element.
+export default function ScreenShare({ sessionId, getAt, onEvents, onSharingChange, shareRef, hideUntilSharing = false, headless = false }) {
   const videoRef = useRef(null);
   const streamRef = useRef(null);
   const lastThumb = useRef(null);
@@ -92,6 +94,11 @@ export default function ScreenShare({ sessionId, getAt, onEvents, onSharingChang
   }, [sharing, sessionId, getAt, onEvents]);
 
   useEffect(() => stop, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  if (headless) {
+    // Invisible but still playing, so frames can be drawn from it.
+    return <video ref={videoRef} muted playsInline aria-hidden="true" className="pointer-events-none fixed left-0 top-0 h-px w-px opacity-0" />;
+  }
 
   return (
     <section className={`card p-5 ${hideUntilSharing && !sharing ? "hidden" : ""}`}>

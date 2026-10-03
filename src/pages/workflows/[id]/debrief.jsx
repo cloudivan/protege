@@ -107,6 +107,7 @@ export default function DebriefPage() {
               sessionId={session._id}
               getAt={getAt}
               controlRef={controlRef}
+              hudPosition="right-4 top-20"
               title="Spoken Debrief &amp; Teach-Back"
               subtitle="The apprentice asks about unresolved edge cases, then explains the procedure back for expert confirmation."
             />

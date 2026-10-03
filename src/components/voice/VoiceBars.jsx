@@ -79,7 +79,7 @@ export default function VoiceBars({ sampleRef, className = "" }) {
       {Array.from({ length: BARS }, (_, i) => (
         <span
           key={i}
-          className="aspect-auto w-[13%] rounded-full bg-primary shadow-sm transition-colors duration-300 group-data-[mode=idle]:bg-primary/50 group-data-[mode=listening]:bg-muted-foreground/70"
+          className="w-[13%] rounded-full bg-primary transition-colors duration-300 group-data-[mode=idle]:bg-foreground/40 group-data-[mode=listening]:bg-foreground/70"
           style={{ height: `${MIN * 100}%` }}
         />
       ))}
