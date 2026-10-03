@@ -17,7 +17,10 @@ function thumbDiff(a, b) {
   return d / (a.length * 0.75 * 255);
 }
 
-export default function ScreenShare({ sessionId, getAt, onEvents, onSharingChange }) {
+// `shareRef` (optional) exposes start() so another control can open the picker.
+// start() resolves true once sharing, false if the user cancelled.
+// `hideUntilSharing` hides the card (and its Share button) until a share is live.
+export default function ScreenShare({ sessionId, getAt, onEvents, onSharingChange, shareRef, hideUntilSharing = false }) {
   const videoRef = useRef(null);
   const streamRef = useRef(null);
   const lastThumb = useRef(null);
@@ -32,6 +35,7 @@ export default function ScreenShare({ sessionId, getAt, onEvents, onSharingChang
   };
 
   const start = async () => {
+    if (streamRef.current) return true;
     try {
       const stream = await navigator.mediaDevices.getDisplayMedia({ video: { frameRate: 5 }, audio: false });
       streamRef.current = stream;
@@ -40,10 +44,14 @@ export default function ScreenShare({ sessionId, getAt, onEvents, onSharingChang
       stream.getVideoTracks()[0].addEventListener("ended", stop);
       setSharing(true);
       onSharingChange?.(true);
+      return true;
     } catch (e) {
-      toast.error(e.message || "Screen share cancelled");
+      toast.error(e.name === "NotAllowedError" ? "Screen share is needed to start" : e.message || "Screen share cancelled");
+      return false;
     }
   };
+
+  if (shareRef) shareRef.current = { start, stop };
 
   useEffect(() => {
     if (!sharing) return;
@@ -85,7 +93,7 @@ export default function ScreenShare({ sessionId, getAt, onEvents, onSharingChang
   useEffect(() => stop, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   return (
-    <section className="card p-5">
+    <section className={`card p-5 ${hideUntilSharing && !sharing ? "hidden" : ""}`}>
       <div className="flex items-center justify-between">
         <h2 className="font-semibold">Screen</h2>
         {sharing ? (

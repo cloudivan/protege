@@ -6,6 +6,8 @@
 //   controlRef.current.end()
 //
 // `getAt()` returns ms since session start (the screen-moment clock).
+// `beforeStart` (optional) runs first on Start, e.g. to open the screen share
+// picker inside the same click. Resolve false to cancel the start.
 //
 // SDK note: @elevenlabs/react is newer than most training data. Verify method
 // names against node_modules/@elevenlabs/react/dist/*.d.ts before relying on
@@ -47,7 +49,7 @@ function Transcript({ turns }) {
 }
 
 // ---------------------------------------------------------------- real voice
-function RealPanel({ sessionId, getAt, clientTools, controlRef, onUserTurn }) {
+function RealPanel({ sessionId, getAt, clientTools, controlRef, onUserTurn, beforeStart, onEnd }) {
   const [micMuted, setMicMuted] = useState(false);
   const [starting, setStarting] = useState(false);
   const [turns, setTurns] = useState([]);
@@ -73,6 +75,7 @@ function RealPanel({ sessionId, getAt, clientTools, controlRef, onUserTurn }) {
   const start = async () => {
     setStarting(true);
     try {
+      if (beforeStart && !(await beforeStart())) return;
       const pre = await navigator.mediaDevices.getUserMedia({ audio: true });
       pre.getTracks().forEach((t) => t.stop());
       const data = await api("/api/agent/session", { method: "POST", body: { sessionId } });
@@ -102,7 +105,7 @@ function RealPanel({ sessionId, getAt, clientTools, controlRef, onUserTurn }) {
               {micMuted ? <MicOff className="mr-2 h-4 w-4" /> : <Mic className="mr-2 h-4 w-4" />}
               {micMuted ? "Unmute" : "Mute"}
             </button>
-            <button type="button" onClick={() => conversation.endSession()} className="btn btn-secondary">
+            <button type="button" onClick={() => { conversation.endSession(); onEnd?.(); }} className="btn btn-secondary">
               <PhoneOff className="mr-2 h-4 w-4" /> End
             </button>
           </>
@@ -126,7 +129,7 @@ function RealPanel({ sessionId, getAt, clientTools, controlRef, onUserTurn }) {
 }
 
 // ---------------------------------------------------------------- mock voice
-function MockPanel({ sessionId, getAt, controlRef, onUserTurn, clientTools = {} }) {
+function MockPanel({ sessionId, getAt, controlRef, onUserTurn, clientTools = {}, beforeStart }) {
   const [cfg, setCfg] = useState(null);
   const [turns, setTurns] = useState([]);
   const [draft, setDraft] = useState("");
@@ -176,6 +179,7 @@ function MockPanel({ sessionId, getAt, controlRef, onUserTurn, clientTools = {} 
   });
 
   const start = async () => {
+    if (beforeStart && !(await beforeStart())) return;
     const data = await api("/api/agent/session", { method: "POST", body: { sessionId } });
     setCfg(data);
     api(`/api/sessions/${sessionId}`, { method: "PATCH", body: { status: "live" } });
