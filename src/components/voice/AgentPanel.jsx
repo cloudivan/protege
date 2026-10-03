@@ -21,11 +21,7 @@ import { api, noEmDash } from "@/lib/utils";
 
 const VOICE_MODE = process.env.NEXT_PUBLIC_VOICE_MODE === "real" ? "real" : "mock";
 
-// The placeholder session the API returns when there is no database.
-const OFFLINE_SESSION_ID = "demo-session";
-
 function logTurn(sessionId, role, text, at) {
-  if (sessionId === OFFLINE_SESSION_ID) return;
   const question = role === "agent" && text.trim().endsWith("?") ? { kind: "other" } : undefined; // TODO(capture): classify why/guardrail
   api(`/api/sessions/${sessionId}/transcript`, { method: "POST", body: { role, text, at, question } }).catch(() => {});
 }
@@ -133,10 +129,7 @@ function RealPanel({ sessionId, getAt, clientTools, controlRef, onUserTurn, befo
 }
 
 // ---------------------------------------------------------------- mock voice
-function MockPanel({ sessionId, getAt, controlRef, onUserTurn, clientTools = {}, beforeStart, offlineConfig }) {
-  // No database: start from the page's demo data instead of /api/agent/session,
-  // so the text tutor still runs for UI work. Nothing is saved in this mode.
-  const offline = sessionId === OFFLINE_SESSION_ID && Boolean(offlineConfig);
+function MockPanel({ sessionId, getAt, controlRef, onUserTurn, clientTools = {}, beforeStart }) {
   const [cfg, setCfg] = useState(null);
   const [turns, setTurns] = useState([]);
   const [draft, setDraft] = useState("");
@@ -187,7 +180,6 @@ function MockPanel({ sessionId, getAt, controlRef, onUserTurn, clientTools = {},
 
   const start = async () => {
     if (beforeStart && !(await beforeStart())) return;
-    if (offline) return setCfg(offlineConfig);
     const data = await api("/api/agent/session", { method: "POST", body: { sessionId } });
     setCfg(data);
     api(`/api/sessions/${sessionId}`, { method: "PATCH", body: { status: "live" } });
