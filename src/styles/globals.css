@@ -257,3 +257,18 @@ body {
 }
 
 
+
+/* Landing page voice bars: a slow, calm breathing so the hero feels alive. */
+.landing-bar {
+  transform-origin: center;
+  animation: landingBreathe 1.8s ease-in-out infinite;
+}
+
+@keyframes landingBreathe {
+  0%, 100% { transform: scaleY(1); }
+  50% { transform: scaleY(0.55); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .landing-bar { animation: none; }
+}
