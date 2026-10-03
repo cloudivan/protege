@@ -119,14 +119,33 @@ function RealPanel({ sessionId, getAt, clientTools, controlRef, onUserTurn, befo
     onEnd?.();
   };
 
-  // Runs inside the click: the screen share picker and the floating window
-  // both need the user gesture, so both are requested before any await.
+  // Runs inside the click so the screen share picker gets the user gesture.
+  // The floating window must NOT open in the same click: it takes focus and
+  // Chrome then cancels the picker. It opens on its own when the user leaves
+  // the tab (below), or from the Pop out button.
   const start = () => {
     setNeedsShare(false);
     const ready = beforeStart ? beforeStart() : true;
-    pip.open(PIP_SIZE);
     connect(ready);
   };
+
+  // Automatic picture-in-picture (Chrome 134+): while the call is live and
+  // her voice is playing, switching to another tab or app calls this handler,
+  // which may open the floating window without a click.
+  const openPip = pip.open;
+  useEffect(() => {
+    if (!connected || !("mediaSession" in navigator)) return;
+    try {
+      navigator.mediaSession.setActionHandler("enterpictureinpicture", () => openPip(PIP_SIZE));
+    } catch {
+      return; // this browser does not support the action
+    }
+    return () => {
+      try {
+        navigator.mediaSession.setActionHandler("enterpictureinpicture", null);
+      } catch {}
+    };
+  }, [connected, openPip]);
 
   const connect = async (ready) => {
     setStarting(true);
@@ -179,8 +198,8 @@ function RealPanel({ sessionId, getAt, clientTools, controlRef, onUserTurn, befo
           {hud(false)}
           {pip.pipWindow && createPortal(<div className="h-screen bg-background text-foreground">{hud(true)}</div>, pip.pipWindow.document.body)}
           {connected && pip.supported && !pip.pipWindow && (
-            <button type="button" onClick={() => pip.open(PIP_SIZE)} className="mx-auto flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground">
-              <PictureInPicture2 className="h-3.5 w-3.5" /> Pop out, keep her visible on any tab
+            <button type="button" onClick={() => pip.open(PIP_SIZE)} className="btn btn-secondary mx-auto px-3 py-1.5 text-xs">
+              <PictureInPicture2 className="mr-1.5 h-3.5 w-3.5" /> Pop out
             </button>
           )}
         </>
