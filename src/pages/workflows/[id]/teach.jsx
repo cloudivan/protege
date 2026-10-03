@@ -9,7 +9,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/router";
-import { ExternalLink, Flag, ShieldAlert } from "lucide-react";
+import { AlertCircle, CheckCircle2, ExternalLink, Flag, Play } from "lucide-react";
 import { toast } from "sonner";
 import { api } from "@/lib/utils";
 import getScenario from "@/config/scenarios";
@@ -23,11 +23,12 @@ import EventFeed from "@/components/capture/EventFeed";
 import MomentReplay from "@/components/teach/MomentReplay";
 import MasteryReport from "@/components/teach/MasteryReport";
 
+const LEARNER = "Lena (new hire)";
+
 export default function TeachPage() {
   const { query } = useRouter();
   const [data, setData] = useState(null);
-  const [learner] = useState("New hire");
-  const { session, getAt } = useLiveSession(data?.workMap ? query.id : null, "teach", learner);
+  const { session, getAt } = useLiveSession(data?.workMap ? query.id : null, "teach", LEARNER);
   const controlRef = useRef(null);
   const sandboxSeen = useRef(false);
   const [events, setEvents] = useState([]);
@@ -142,87 +143,134 @@ export default function TeachPage() {
   const teachCase = scenario?.cases?.teach?.[0];
 
   return (
-    <div className="mx-auto max-w-6xl px-6 py-6">
-      <h1 className="font-display text-2xl font-bold">3. Teach</h1>
-      <p className="text-sm text-muted-foreground">
-        A new hire works a case {expertName} never showed. The tutor coaches from {expertName}&apos;s Work Map and steps in before a guardrail is broken.
-      </p>
-
-      <div className="mt-6 grid gap-4 lg:grid-cols-[1.4fr_1fr]">
-        <div className="space-y-4">
-          <section className="card p-5">
-            <h2 className="font-semibold">Your case</h2>
-            {teachCase && (
-              <p className="mt-1 text-sm">
-                {teachCase.id} · {teachCase.supplier} · {teachCase.item} · {teachCase.amount.toLocaleString("de-DE")} {teachCase.currency}
-              </p>
-            )}
-            <ol className="mt-3 list-decimal space-y-1 pl-5 text-sm text-muted-foreground">
-              <li>Open the sandbox ERP in a new tab.</li>
-              <li>Share that tab below, then start the tutor.</li>
-              <li>Process the invoice. Talk to the tutor whenever you like.</li>
-            </ol>
-            {sandboxUrl && (
-              <a href={sandboxUrl} target="_blank" rel="noreferrer" className="btn btn-primary mt-4 inline-flex">
-                <ExternalLink className="mr-2 h-4 w-4" /> Open sandbox ERP
-              </a>
-            )}
-          </section>
-
-          {session && <ScreenShare sessionId={session._id} getAt={getAt} onEvents={onVisionEvents} />}
-
-          {alert && (
-            <section className="card border-error-500 p-5">
-              <h2 className="flex items-center gap-2 font-semibold text-error-600">
-                <ShieldAlert className="h-5 w-5" /> {expertName} would stop here
-              </h2>
-              <p className="mt-2 text-sm">Step {alert.stepIndex}: {alert.stepTitle}. {alert.explanation}</p>
-              {alert.guardrail && <p className="mt-1 text-sm text-muted-foreground">{alert.guardrail}</p>}
-              {alert.hasMoment && (
-                <button type="button" onClick={() => setReplayStep(stepByIndex(alert.stepIndex))} className="btn btn-secondary mt-3">
-                  Replay {expertName}&apos;s moment
-                </button>
-              )}
-            </section>
-          )}
-
-          <EventFeed events={events} />
+    <div className="min-h-full paper-grid">
+      <div className="mx-auto max-w-6xl px-6 py-8">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div>
+            <span className="rounded bg-primary/10 px-2 py-0.5 font-mono text-xs uppercase tracking-widest text-primary">
+              Module 3 · Voice Tutor
+            </span>
+            <h1 className="mt-2 font-serif text-2xl font-bold">{workflow.title}</h1>
+            <p className="text-sm text-muted-foreground">
+              A case {expertName} never showed. The tutor coaches in {expertName}&apos;s words and steps in before a guardrail is broken.
+            </p>
+          </div>
+          <div className="font-mono text-xs text-muted-foreground">
+            Learner: <span className="font-semibold text-foreground">{LEARNER}</span>
+          </div>
         </div>
 
-        <div className="space-y-4">
-          {session ? (
-            <AgentPanel
-              title="Tutor"
-              subtitle={`Coaching in ${expertName}'s words`}
-              sessionId={session._id}
-              getAt={getAt}
-              clientTools={clientTools}
-              controlRef={controlRef}
-              onUserTurn={markActivity}
-            />
-          ) : (
-            <div className="card flex justify-center p-5"><Loader /></div>
-          )}
+        <div className="mt-8 grid grid-cols-1 gap-8 lg:grid-cols-12">
+          {/* Left: the learner's workspace */}
+          <section className="space-y-6 lg:col-span-7">
+            <div className="sketch-border space-y-4 rounded-lg bg-card p-6">
+              <div className="flex items-start justify-between border-b border-border pb-4">
+                <div>
+                  <span className="font-mono text-xs text-muted-foreground">SANDBOX ERP · YOUR CASE</span>
+                  {teachCase && <h2 className="mt-1 font-serif text-xl font-bold">Invoice #{teachCase.id}</h2>}
+                </div>
+                <span className="rounded bg-amber-500/10 px-2 py-1 font-mono text-xs text-amber-700 dark:text-amber-400">
+                  {mastery ? "Done" : "Unprocessed"}
+                </span>
+              </div>
+              {teachCase && (
+                <div className="grid grid-cols-2 gap-4 rounded border border-border bg-muted/40 p-4 text-sm">
+                  <div>
+                    <div className="text-xs text-muted-foreground">Vendor</div>
+                    <div className="font-medium">{teachCase.supplier}</div>
+                  </div>
+                  <div>
+                    <div className="text-xs text-muted-foreground">Amount</div>
+                    <div className="font-mono text-base font-bold text-primary">
+                      {teachCase.amount.toLocaleString("de-DE", { style: "currency", currency: teachCase.currency })}
+                    </div>
+                  </div>
+                  <div className="col-span-2">
+                    <div className="text-xs text-muted-foreground">Description</div>
+                    <div className="font-medium">{teachCase.item}</div>
+                  </div>
+                </div>
+              )}
+              <ol className="list-decimal space-y-1 pl-5 text-sm text-muted-foreground">
+                <li>Open the sandbox ERP in a new tab.</li>
+                <li>Share that tab below, then start the tutor.</li>
+                <li>Process the invoice. Talk to the tutor whenever you like.</li>
+              </ol>
+              {sandboxUrl && (
+                <a href={sandboxUrl} target="_blank" rel="noreferrer" className="btn btn-primary">
+                  <ExternalLink className="mr-2 h-4 w-4" /> Open sandbox ERP
+                </a>
+              )}
+            </div>
 
-          {interventions.length > 0 && (
-            <section className="card p-5 text-sm">
-              <h2 className="font-semibold">Tutor stepped in</h2>
-              <ul className="mt-2 space-y-1">
+            {session && <ScreenShare sessionId={session._id} getAt={getAt} onEvents={onVisionEvents} />}
+            <EventFeed events={events} />
+          </section>
+
+          {/* Right: the tutor companion */}
+          <section className="space-y-6 lg:col-span-5">
+            {session ? (
+              <AgentPanel
+                title="Protégé Voice Tutor"
+                subtitle={`Coaching in ${expertName}'s words`}
+                sessionId={session._id}
+                getAt={getAt}
+                clientTools={clientTools}
+                controlRef={controlRef}
+                onUserTurn={markActivity}
+              />
+            ) : (
+              <div className="card flex justify-center p-5"><Loader /></div>
+            )}
+
+            {alert && (
+              <div className="sketch-border-alert animate-fadeIn space-y-3 rounded-md bg-primary/5 p-4">
+                <div className="flex items-center justify-between">
+                  <span className="flex items-center gap-1 font-mono text-xs font-bold text-primary">
+                    <AlertCircle className="h-3.5 w-3.5" /> {expertName.toUpperCase()} WOULD STOP HERE
+                  </span>
+                  <span className="font-mono text-[11px] text-muted-foreground">Step {alert.stepIndex} of Work Map</span>
+                </div>
+                <p className="text-sm">{alert.explanation}</p>
+                {alert.guardrail && <p className="text-xs text-muted-foreground">{alert.guardrail}</p>}
+                {alert.expertReason && (
+                  <div className="border-l-2 border-primary pl-2 font-serif text-sm italic">
+                    &ldquo;{alert.expertReason}&rdquo; <span className="not-italic text-muted-foreground">{expertName}</span>
+                  </div>
+                )}
+                {alert.hasMoment && (
+                  <button
+                    type="button"
+                    onClick={() => setReplayStep(stepByIndex(alert.stepIndex))}
+                    className="flex w-full items-center justify-center gap-2 rounded border border-border bg-card px-3 py-2 text-xs font-medium hover:bg-muted"
+                  >
+                    <Play className="h-3 w-3 fill-current text-primary" /> Replay {expertName}&apos;s screen moment
+                  </button>
+                )}
+              </div>
+            )}
+
+            {interventions.length > 0 && !mastery && (
+              <div className="sketch-border space-y-1 rounded-lg bg-card p-4 text-sm">
+                <div className="font-mono text-xs uppercase tracking-wider text-muted-foreground">Tutor stepped in</div>
                 {interventions.map((x, i) => (
-                  <li key={i}>
-                    <span className="font-medium">{x.outcome}</span> · step {x.stepIndex}: {x.guardrail}
-                  </li>
+                  <p key={i}><span className="font-medium">{x.outcome}</span> · step {x.stepIndex}: {x.guardrail}</p>
                 ))}
-              </ul>
-            </section>
-          )}
+              </div>
+            )}
 
-          {!mastery && session && (
-            <button type="button" onClick={() => { send("LESSON DONE"); finish(); }} disabled={finishing} className="btn btn-secondary w-full disabled:opacity-50">
-              <Flag className="mr-2 h-4 w-4" /> {finishing ? "Summarizing…" : "Finish lesson"}
-            </button>
-          )}
-          <MasteryReport mastery={mastery} interventions={interventions} />
+            {!mastery && session && (
+              <button type="button" onClick={() => { send("LESSON DONE"); finish(); }} disabled={finishing} className="btn btn-secondary w-full disabled:opacity-50">
+                <Flag className="mr-2 h-4 w-4" /> {finishing ? "Summarizing…" : "Finish lesson"}
+              </button>
+            )}
+            {mastery && (
+              <div className="flex items-center gap-2 text-xs font-medium text-emerald-700 dark:text-emerald-400">
+                <CheckCircle2 className="h-4 w-4" /> Lesson complete
+              </div>
+            )}
+            <MasteryReport mastery={mastery} interventions={interventions} />
+          </section>
         </div>
       </div>
 

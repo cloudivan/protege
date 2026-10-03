@@ -2,77 +2,76 @@
 @tailwind components;
 @tailwind utilities;
 
-/* Two typefaces routed through semantic vars: webfonts are loaded by next/font
-   in _app.jsx (--font-jakarta, --font-dm-sans) and bound here. Tailwind
-   families in tailwind.config.js read these. */
+@layer base {
+  :root {
+    --background: 40 20% 97%;       /* #FAF8F5 Warm Claude parchment */
+    --foreground: 30 10% 12%;       /* #22201E Deep charcoal ink */
+    --card: 40 25% 99%;             /* #FCFAF7 Clean paper card */
+    --card-foreground: 30 10% 12%;
+    --popover: 40 25% 99%;
+    --popover-foreground: 30 10% 12%;
+    --primary: 16 65% 52%;          /* #D9603B Claude signature terracotta */
+    --primary-foreground: 0 0% 100%;
+    --secondary: 35 15% 92%;        /* #EBE7DF Warm stone secondary */
+    --secondary-foreground: 30 10% 12%;
+    --muted: 35 15% 92%;
+    --muted-foreground: 30 8% 46%;  /* #78736E Pencil graphite */
+    --accent: 38 90% 50%;           /* #F59E0B Warm ochre highlight */
+    --accent-foreground: 0 0% 100%;
+    --destructive: 0 72% 51%;       /* #DC2626 Warning red */
+    --destructive-foreground: 0 0% 100%;
+    --border: 35 15% 88%;           /* #E5DFD5 Crisp architectural line */
+    --input: 35 15% 86%;
+    --ring: 16 65% 52%;
+    --radius: 0.375rem;
+  }
+
+  .dark {
+    --background: 30 10% 9%;        /* #1A1816 Dark charcoal desk */
+    --foreground: 40 20% 94%;       /* #F5F1EA Soft parchment text */
+    --card: 30 10% 12%;
+    --card-foreground: 40 20% 94%;
+    --border: 30 10% 20%;
+    --muted: 30 10% 16%;
+    --muted-foreground: 35 10% 60%;
+  }
+}
+
+body {
+  background-color: hsl(var(--background));
+  color: hsl(var(--foreground));
+  font-feature-settings: "cv02", "cv03", "cv04", "cv11";
+}
+
+/* Claude Architectural Blueprint & Sketch Elements */
+.sketch-border {
+  border: 1.5px solid hsl(var(--border));
+  box-shadow: 2px 2px 0px 0px hsl(var(--border));
+}
+
+.sketch-border-alert {
+  border: 2px dashed hsl(var(--primary));
+  animation: sketchPulse 2s ease-in-out infinite;
+}
+
+@keyframes sketchPulse {
+  0%, 100% { border-color: hsl(var(--primary)); }
+  50% { border-color: hsl(var(--accent)); }
+}
+
+.paper-grid {
+  background-image: radial-gradient(hsl(var(--border)) 1px, transparent 1px);
+  background-size: 20px 20px;
+}
+
+/* ------------------------------------------------------------------------
+   Shared component classes, restyled for the sketch aesthetic. The redesign
+   dropped them but most pages and components still use card / btn / input. */
+
 .app-fonts {
   --font-display: var(--font-jakarta); /* headings */
   --font-body: var(--font-dm-sans); /* body copy */
   font-family: var(--font-body), ui-sans-serif, system-ui, sans-serif;
-}
-
-/* Theme tokens live in the `@layer base { :root { ... } }` block below in
-   HSL-component form. Tailwind utilities wrap them in `hsl(...)`, so never
-   redeclare them as hex. */
-
-html {
-  /* `clip` clips horizontal overflow without breaking `position: sticky`. */
-  overflow-x: clip;
-  overflow-y: scroll;
-  scrollbar-width: none; /* Firefox */
-  -ms-overflow-style: none; /* IE and Edge */
-}
-
-body {
-  overflow-x: clip;
-}
-
-html::-webkit-scrollbar {
-  display: none; /* Chrome, Safari, Opera */
-}
-
-html,
-body {
-  padding: 0;
-  margin: 0;
-  font-family:
-    var(--font-body),
-    -apple-system,
-    BlinkMacSystemFont,
-    "Segoe UI",
-    Roboto,
-    sans-serif;
-  background-color: hsl(var(--background));
-  color: hsl(var(--foreground));
-}
-
-* {
-  box-sizing: border-box;
-}
-
-a {
-  color: inherit;
-  text-decoration: none;
-}
-
-/* Custom scrollbar */
-::-webkit-scrollbar {
-  width: 8px;
-  height: 8px;
-}
-
-::-webkit-scrollbar-track {
-  background: #f3f4f6;
-  border-radius: 4px;
-}
-
-::-webkit-scrollbar-thumb {
-  background: #d1d5db;
-  border-radius: 4px;
-}
-
-::-webkit-scrollbar-thumb:hover {
-  background: #9ca3af;
 }
 
 /* Subtle overlay scrollbar for floating panels. */
@@ -95,89 +94,39 @@ a {
   background: hsl(var(--muted-foreground) / 0.4);
 }
 
-/* Focus styles */
-*:focus {
-  outline: none;
+
+.card {
+  @apply bg-card text-card-foreground rounded-lg;
+  border: 1.5px solid hsl(var(--border));
+  box-shadow: 2px 2px 0px 0px hsl(var(--border));
 }
 
-*:focus-visible {
-  outline: 2px solid hsl(var(--ring));
-  outline-offset: 2px;
-}
-
-/* Text fields signal focus with their own border; suppress the global
-   focus-visible outline AND the @tailwindcss/forms default focus ring.
-   Intentionally unlayered so it beats the plugin's @layer base styles. */
-input:focus,
-input:focus-visible,
-textarea:focus,
-textarea:focus-visible,
-select:focus,
-select:focus-visible {
-  /* !important: @tailwindcss/forms targets [type='text']:focus (specificity
-     0,2,0) which would otherwise beat these element selectors. */
-  outline: none !important;
-  outline-offset: 0 !important;
-  box-shadow: none !important;
-  --tw-ring-shadow: 0 0 #0000;
-  --tw-ring-offset-shadow: 0 0 #0000;
-  --tw-ring-color: transparent;
-}
-
-/* Button base styles — cut-corner bevel design language. */
 .btn {
-  @apply inline-flex items-center justify-center px-4 py-2 text-sm font-medium font-secondary transition-all duration-200 hover:scale-105 focus:outline-none focus:ring-2 focus:ring-offset-2;
-  clip-path: polygon(
-    7px 0,
-    100% 0,
-    100% calc(100% - 7px),
-    calc(100% - 7px) 100%,
-    0 100%,
-    0 7px
-  );
+  @apply inline-flex items-center justify-center rounded px-4 py-2 text-sm font-medium shadow-sm transition focus:outline-none focus:ring-2 focus:ring-offset-2;
+  --tw-ring-color: hsl(var(--ring));
 }
 
 .btn-primary {
-  @apply bg-primary-400 text-white hover:bg-primary-700 focus:ring-primary-400 transition-all duration-200;
+  background-color: hsl(var(--primary));
+  color: hsl(var(--primary-foreground));
+}
+.btn-primary:hover {
+  background-color: hsl(var(--primary) / 0.9);
 }
 
 .btn-secondary {
-  @apply bg-foreground text-background border border-foreground hover:bg-foreground/85 focus:ring-primary-400 transition-all duration-200;
+  @apply border border-border bg-card text-foreground;
+}
+.btn-secondary:hover {
+  background-color: hsl(var(--muted));
 }
 
-/* Card styles — sharp hairline panels. */
-.card {
-  @apply bg-card border border-border shadow-sm;
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(4px); }
+  to { opacity: 1; transform: none; }
 }
-
-/* Reusable cut-corner bevel. */
-.cut-corners {
-  clip-path: polygon(
-    6px 0,
-    100% 0,
-    100% calc(100% - 6px),
-    calc(100% - 6px) 100%,
-    0 100%,
-    0 6px
-  );
-}
-
-/* Larger bevel for hero/footer panels (viraloop PANEL_CLIP). */
-.cut-corners-lg {
-  clip-path: polygon(
-    24px 0,
-    100% 0,
-    100% calc(100% - 24px),
-    calc(100% - 24px) 100%,
-    0 100%,
-    0 24px
-  );
-}
-/* Faint dotted grid for section texture — paints with the theme border color,
-   so it reads in both light and dark. Pair with a radial mask to fade edges. */
-.bg-dot-grid {
-  background-image: radial-gradient(hsl(var(--border)) 1px, transparent 1px);
-  background-size: 22px 22px;
+.animate-fadeIn {
+  animation: fadeIn 0.25s ease-out;
 }
 
 /* Collapsed dashboard sidebar (icon rail): nav labels turn into hover tooltips.
@@ -228,32 +177,6 @@ select:focus-visible {
 /* Input styles. Focus is shown with a brand-blue border (not a ring). */
 .input {
   @apply w-full pl-3 pr-3 py-2 bg-background border border-border rounded-lg text-foreground placeholder:text-muted-foreground/55 focus:outline-none focus:border-primary-400;
-}
-
-/* Badge styles */
-.badge {
-  @apply inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium;
-}
-
-.badge-success {
-  @apply bg-success-100 text-success-700;
-}
-
-.badge-warning {
-  @apply bg-warning-100 text-warning-600;
-}
-
-.badge-error {
-  @apply bg-error-100 text-error-700;
-}
-
-.badge-info {
-  @apply bg-info-100 text-info-600;
-}
-
-/* Loading spinner */
-.spinner {
-  @apply animate-spin h-5 w-5 border-2 border-primary-400 border-t-transparent rounded-full;
 }
 
 /* Genome (DNA) loader — CSS only. Paints with `--ink`, defaulting to
@@ -328,171 +251,7 @@ select:focus-visible {
   }
 }
 
-/* Transitions */
-.transition-base {
-  @apply transition-all duration-200 ease-in-out;
-}
-
-@layer base {
-  :root {
-    /* Creamy eggshell light theme — cards sit almost flat on the page and are
-       separated by the warm border, not by brightness. Orange stays on --ring. */
-    --background: 56 26% 92.5%; /* creamy eggshell ~#f1f0e6 */
-    --foreground: 0 0% 3.9%;
-    --card: 56 30% 93.8%; /* ~#f4f3ea */
-    --card-foreground: 0 0% 3.9%;
-    --popover: 56 30% 93.8%;
-    --popover-foreground: 0 0% 3.9%;
-    --primary: 0 0% 9%;
-    --primary-foreground: 0 0% 98%;
-    --secondary: 53 22% 88%; /* warm muted surface (~#e7e4d6) */
-    --secondary-foreground: 0 0% 9%;
-    --muted: 53 22% 88%;
-    --muted-foreground: 0 0% 45.1%;
-    --accent: 53 22% 88%; /* neutral warm hover; brand blue lives on --ring */
-    --accent-foreground: 0 0% 9%;
-    --destructive: 0 84.2% 60.2%;
-    --destructive-foreground: 0 0% 98%;
-    --border: 50 20% 83%; /* soft warm border (~#ddd9c9) */
-    --input: 50 20% 83%;
-    --ring: 200 93% 47%; /* brand blue (#08A0E9) focus ring */
-    --radius: 0.5rem;
-  }
-  .dark {
-    --background: 0 0% 3.9%;
-    --foreground: 0 0% 98%;
-    --card: 0 0% 9%;
-    --card-foreground: 0 0% 98%;
-    --popover: 0 0% 3.9%;
-    --popover-foreground: 0 0% 98%;
-    --primary: 0 0% 98%;
-    --primary-foreground: 0 0% 9%;
-    --secondary: 0 0% 14.9%;
-    --secondary-foreground: 0 0% 98%;
-    --muted: 0 0% 9%;
-    --muted-foreground: 0 0% 63.9%;
-    --accent: 0 0% 14.9%;
-    --accent-foreground: 0 0% 98%;
-    --destructive: 0 62.8% 30.6%;
-    --destructive-foreground: 0 0% 98%;
-    --border: 0 0% 14.9%;
-    --input: 0 0% 14.9%;
-    --ring: 200 93% 47%; /* brand blue stays consistent in dark mode */
-  }
-}
-
-/* Entrance animations + a11y helpers */
-@keyframes enter-up {
-  from {
-    opacity: 0;
-    transform: translate3d(0, 12px, 0);
-  }
-  to {
-    opacity: 1;
-    transform: translate3d(0, 0, 0);
-  }
-}
-
-@keyframes enter-fade {
-  from {
-    opacity: 0;
-  }
-  to {
-    opacity: 1;
-  }
-}
-
-.enter {
-  opacity: 0;
-  animation: enter-up 700ms cubic-bezier(0.22, 1, 0.36, 1) forwards;
-  animation-delay: var(--enter-delay, 0ms);
-}
-
-.enter-fade {
-  opacity: 0;
-  animation: enter-fade 900ms cubic-bezier(0.22, 1, 0.36, 1) forwards;
-  animation-delay: var(--enter-delay, 0ms);
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .enter,
-  .enter-fade {
-    opacity: 1;
-    animation: none;
-  }
-}
-
-/* Landing lock figures: the hero padlock springs open (the product promise in
-   one gesture); background locks drift slowly. */
-@keyframes shackle-open {
-  0%,
-  55% {
-    transform: rotate(0deg);
-  }
-  68% {
-    transform: rotate(7deg);
-  }
-  100% {
-    transform: rotate(-38deg);
-  }
-}
-
-.anim-shackle {
-  transform-origin: 16px 10px;
-  animation: shackle-open 1.7s cubic-bezier(0.34, 1.56, 0.64, 1) 1s both;
-}
-
-@keyframes float-y {
-  0%,
-  100% {
-    transform: translateY(0) rotate(var(--float-rot, 0deg));
-  }
-  50% {
-    transform: translateY(-12px) rotate(var(--float-rot, 0deg));
-  }
-}
-
-.float-y {
-  animation: float-y var(--float-dur, 7s) ease-in-out infinite;
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .anim-shackle,
-  .float-y {
-    animation: none;
-  }
-}
-
-.skip-to-content {
-  position: absolute;
-  left: -9999px;
-  top: 1rem;
-  z-index: 9999;
-  padding: 0.75rem 1rem;
-  background: hsl(var(--background));
-  border: 2px solid hsl(var(--ring));
-  border-radius: 0.375rem;
-  font-weight: 600;
-  text-decoration: none;
-  color: hsl(var(--foreground));
-}
-
-.skip-to-content:focus {
-  left: 1rem;
-  outline: 2px solid hsl(var(--ring));
-  outline-offset: 2px;
-}
-
 .focus-ring:focus-visible {
   outline: 2px solid hsl(var(--ring));
   outline-offset: 2px;
-}
-
-@layer base {
-  * {
-    @apply border-border;
-  }
-  body {
-    @apply bg-background text-foreground;
-  }
 }
