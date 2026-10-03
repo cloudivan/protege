@@ -107,8 +107,16 @@ function RealPanel({ sessionId, getAt, clientTools, controlRef, onUserTurn }) {
             <Phone className="mr-2 h-4 w-4" /> {starting ? "Connecting…" : "Start"}
           </button>
         )}
-        <span className="ml-auto text-xs text-muted-foreground">{connected ? (conversation.isSpeaking ? "Speaking" : "Listening") : "Not connected"}</span>
+        <span className="ml-auto text-xs text-muted-foreground">
+          {connected
+            ? conversation.isSpeaking ? "Speaking" : "Listening"
+            : conversation.status === "connecting" ? "Connecting…" : "Not connected"}
+        </span>
       </div>
+      {/* Surface SDK connection errors instead of failing silently. */}
+      {conversation.status === "error" && (
+        <p className="mt-2 text-xs text-error-600">Voice error: {conversation.message || "could not connect"}</p>
+      )}
     </>
   );
 }

@@ -1,22 +1,42 @@
-// Provider adapter for the engine's LLM calls. Gemini by default, then OpenAI,
-// then Anthropic; switch explicitly with LLM_PROVIDER=gemini|openai|anthropic.
-// Callers speak one neutral format; all provider wire-format differences live
-// in this file.
+// Provider adapter for the engine's LLM calls. Anthropic (Claude) by default,
+// then Gemini, then OpenAI, by which API key is set; switch explicitly with
+// LLM_PROVIDER=anthropic|gemini|openai. Callers speak one neutral format; all
+// provider wire-format differences live in this file.
 //
 // Gemini runs through Google's OpenAI-compatible endpoint, so it shares the
 // OpenAI code path (chat, tools, json_schema, images) with a different client.
 
 import Anthropic from "@anthropic-ai/sdk";
+import { jsonSchemaOutputFormat } from "@anthropic-ai/sdk/helpers/json-schema";
 import OpenAI from "openai";
 
 const MODELS = {
+	anthropic: {
+		fast: process.env.ANTHROPIC_MODEL_FAST || "claude-opus-5-5",
+		smart: process.env.ANTHROPIC_MODEL_SMART || "claude-opus-5-5",
+	},
 	gemini: {
 		fast: process.env.GEMINI_MODEL_FAST || "gemini-flash-lite-latest",
 		smart: process.env.GEMINI_MODEL_SMART || "gemini-flash-lite-latest",
 	},
 	openai: { fast: "gpt-4.1-mini", smart: "gpt-4.1" },
-	anthropic: { fast: "claude-sonnet-5", smart: "claude-opus-4-8" },
 };
+
+// Claude Opus 5.5 always thinks ({type: "disabled"} is a 400); effort is the
+// speed/depth control. Fast tier is spoken dialogue, so keep it low.
+const EFFORT = { fast: "low", smart: "medium" };
+// Thinking tokens count against max_tokens; reply length is set by the prompts.
+const ANTHROPIC_MAX_TOKENS = 16000;
+
+// Shared request fields for every Claude call. On a safety refusal the API
+// re-runs the request on a fallback model inside the same call.
+const claudeParams = (tier) => ({
+	model: model(tier),
+	max_tokens: ANTHROPIC_MAX_TOKENS,
+	output_config: { effort: EFFORT[tier] || "low" },
+	betas: ["server-side-fallback-2026-07-01"],
+	fallbacks: "default",
+});
 
 let anthropicClient = null;
 let openaiClient = null;
@@ -33,6 +53,7 @@ const gemini = () =>
 export const getProvider = () => {
 	const forced = process.env.LLM_PROVIDER;
 	if (["gemini", "openai", "anthropic"].includes(forced)) return forced;
+	if (process.env.ANTHROPIC_API_KEY) return "anthropic";
 	if (process.env.GEMINI_API_KEY) return "gemini";
 	return process.env.OPENAI_API_KEY ? "openai" : "anthropic";
 };
@@ -68,15 +89,12 @@ export const complete = async ({ system, messages, maxTokens = 600, tier = "fast
 		return response.choices[0]?.message?.content?.trim() || "";
 	}
 
-	const response = await anthropic().messages.create({
-		model: model(tier),
-		max_tokens: maxTokens,
-		// fast tier is spoken dialogue: thinking would eat the budget and add
-		// latency. smart tier (reports) thinks adaptively.
-		thinking: tier === "fast" ? { type: "disabled" } : { type: "adaptive" },
+	const response = await anthropic().beta.messages.create({
+		...claudeParams(tier),
 		system,
 		messages: messages.map((m) => ({ role: m.role, content: m.text })),
 	});
+	if (response.stop_reason === "refusal") return "";
 	return response.content.find((b) => b.type === "text")?.text?.trim() || "";
 };
 
@@ -151,14 +169,13 @@ export const completeWithTools = async ({ system, history, tools, maxTokens = 60
 				})),
 			});
 	}
-	const response = await anthropic().messages.create({
-		model: model(tier),
-		max_tokens: maxTokens,
-		thinking: { type: "disabled" },
+	const response = await anthropic().beta.messages.create({
+		...claudeParams(tier),
 		system,
 		tools: tools.map((t) => ({ name: t.name, description: t.description, input_schema: t.schema })),
 		messages,
 	});
+	if (response.stop_reason === "refusal") return { text: "", toolCalls: [] };
 	return {
 		text: response.content.find((b) => b.type === "text")?.text?.trim() || "",
 		toolCalls: response.content
@@ -198,12 +215,15 @@ export const extractStructured = async ({ prompt, schema, fileBase64, mediaType 
 		}
 	}
 
+	// Structured outputs, not forced tool use (tool_choice "tool" is a 400 on
+	// Claude Opus 5.5). Always the Anthropic model here, even when a PDF is
+	// routed to Claude while another provider is the default.
 	const source = { type: "base64", media_type: mediaType, data };
-	const response = await anthropic().messages.create({
+	const { type, schema: outputSchema } = jsonSchemaOutputFormat(schema);
+	const response = await anthropic().beta.messages.create({
+		...claudeParams("smart"),
 		model: MODELS.anthropic.smart,
-		max_tokens: 4096,
-		tools: [{ name: "record_extraction", description: prompt, input_schema: schema }],
-		tool_choice: { type: "tool", name: "record_extraction" },
+		output_config: { effort: EFFORT.smart, format: { type, schema: outputSchema } },
 		messages: [
 			{
 				role: "user",
@@ -214,8 +234,12 @@ export const extractStructured = async ({ prompt, schema, fileBase64, mediaType 
 			},
 		],
 	});
-	const toolUse = response.content.find((b) => b.type === "tool_use");
-	return toolUse ? toolUse.input : {};
+	if (response.stop_reason === "refusal") return {};
+	try {
+		return JSON.parse(response.content.find((b) => b.type === "text")?.text || "{}");
+	} catch {
+		return {};
+	}
 };
 
 export default { getProvider, complete, completeWithTools, extractStructured };
