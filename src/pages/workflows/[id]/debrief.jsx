@@ -8,6 +8,7 @@ import { ArrowLeft, ArrowRight, CheckCircle2, Layers, Sparkles, RefreshCw } from
 import { toast } from "sonner";
 import { api } from "@/lib/utils";
 import { useLiveSession } from "@/lib/useLiveSession";
+import { useDebriefTools } from "@/lib/useDebriefTools";
 import StageRail from "@/components/ui/StageRail";
 import WorkMapTimeline from "@/components/map/WorkMapTimeline";
 import AgentPanel from "@/components/voice/AgentPanel";
@@ -32,6 +33,22 @@ export default function DebriefPage() {
 
   const workflow = data?.workflow;
   const workMap = data?.workMap;
+
+  // The interviewer's debrief tools (resolve_question, confirm_teach_back).
+  // Without them the voice session ends the moment she calls one.
+  const clientTools = useDebriefTools({
+    sessionId: session?._id,
+    workflowId: workflow?._id,
+    getAt,
+    onChange: (e) => {
+      if (e.type === "question_resolved" || e.type === "teach_back_confirmed") loadData();
+      if (e.type === "map_finalized") {
+        loadData();
+        toast.success("Work Map confirmed");
+      }
+      if (e.type === "map_failed") toast.error(`Work Map build failed: ${e.error}`);
+    },
+  });
 
   const buildMap = async () => {
     setGenerating(true);
@@ -104,6 +121,7 @@ export default function DebriefPage() {
               sessionId={session._id}
               getAt={getAt}
               controlRef={controlRef}
+              clientTools={clientTools}
               title="Spoken Debrief &amp; Teach-Back"
               subtitle="The apprentice asks about unresolved edge cases, then explains the procedure back for expert confirmation."
             />

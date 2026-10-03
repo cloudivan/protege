@@ -20,8 +20,21 @@ import { toast } from "sonner";
 import { api, noEmDash } from "@/lib/utils";
 import VoiceBars from "@/components/voice/VoiceBars";
 import { createAgentAudioTap } from "@/lib/agentAudioTap";
+import { TOOLS } from "@/config/prompts";
 
 const VOICE_MODE = process.env.NEXT_PUBLIC_VOICE_MODE === "real" ? "real" : "mock";
+
+// Every client tool either agent may call. ElevenLabs ends the whole call when
+// the agent calls a tool the page did not provide, so missing ones get a stub
+// that answers instead (e.g. capture mode has no debrief tools).
+const ALL_TOOL_NAMES = [...TOOLS.interviewer, ...TOOLS.tutor].map((t) => t.name);
+function withToolStubs(clientTools = {}) {
+  const tools = { ...clientTools };
+  for (const name of ALL_TOOL_NAMES) {
+    if (!tools[name]) tools[name] = async () => `${name} is not available on this page; carry on without it`;
+  }
+  return tools;
+}
 
 function logTurn(sessionId, role, text, at) {
   const question = role === "agent" && text.trim().endsWith("?") ? { kind: "other" } : undefined; // TODO(capture): classify why/guardrail
@@ -143,7 +156,7 @@ function RealPanel({ sessionId, getAt, clientTools, controlRef, onUserTurn, befo
         signedUrl: data.signedUrl,
         connectionType: "websocket",
         dynamicVariables: data.dynamicVariables,
-        clientTools,
+        clientTools: withToolStubs(clientTools),
         onConnect: ({ conversationId }) =>
           api(`/api/sessions/${sessionId}`, { method: "PATCH", body: { status: "live", elevenConversationId: conversationId } }),
         onDisconnect: () => api(`/api/sessions/${sessionId}`, { method: "PATCH", body: { status: "done" } }),
