@@ -1,11 +1,8 @@
 // Landing page. One idea in the first seconds: the headline says what
 // Protégé does, the tutor card next to it shows it doing that.
 import Link from "next/link";
-import { Geist, Geist_Mono } from "next/font/google";
 import { ArrowRight, Check, Lock, Pause } from "lucide-react";
-
-const geist = Geist({ subsets: ["latin"], display: "swap" });
-const geistMono = Geist_Mono({ subsets: ["latin"], variable: "--font-geist-mono", display: "swap" });
+import TutorPlayback from "@/components/landing/TutorPlayback";
 
 const ACCENT = "#FF5A1F";
 const DEMO_HREF = "/workflows/demo/teach";
@@ -26,19 +23,6 @@ function Bars({ size = "lg" }) {
   );
 }
 
-function Bubble({ from, children }) {
-  const tutor = from === "tutor";
-  return (
-    <p
-      className={`m-0 rounded-2xl px-4 py-3 ${
-        tutor ? "max-w-[85%] bg-[#F1F5F9]" : "max-w-[70%] self-end bg-[#0F172A] text-white"
-      }`}
-    >
-      {children}
-    </p>
-  );
-}
-
 const TRUST = [
   { icon: Pause, text: "Stays silent while the expert types. Asks only at pauses." },
   { icon: Lock, text: "The expert can go off the record at any time." },
@@ -47,7 +31,7 @@ const TRUST = [
 
 export default function Home() {
   return (
-    <div className={`${geist.className} ${geistMono.variable} min-h-screen bg-[#ECEFF2] text-[#0F172A] antialiased`}>
+    <div className={`min-h-screen bg-[#ECEFF2] text-[#0F172A] antialiased`}>
       <div className="mx-auto flex min-h-screen max-w-[1280px] flex-col px-6 sm:px-10">
         <header className="flex flex-wrap items-center justify-between gap-4 py-7">
           <Link href="/" className="inline-flex items-center gap-2.5 text-xl font-semibold tracking-tight">
@@ -55,7 +39,6 @@ export default function Home() {
             Protégé
           </Link>
           <nav className="flex flex-wrap items-center gap-7 text-[15px] text-[#475569]">
-            <a href="#trust" className="hover:text-[#0F172A]">Trust</a>
             <Link href="/workflows" className="hover:text-[#0F172A]">Workflows</Link>
           </nav>
         </header>
@@ -76,49 +59,13 @@ export default function Home() {
               >
                 Talk to the tutor <ArrowRight className="h-[18px] w-[18px]" />
               </Link>
-              <span className="font-[family-name:var(--font-geist-mono)] text-[13px] text-[#64748B]">
+              <span className="font-mono text-[13px] text-[#64748B]">
                 Live voice, right in your browser
               </span>
             </div>
           </section>
 
-          <section
-            aria-label="The tutor coaching a new hire"
-            className="flex flex-col gap-5 rounded-3xl bg-white p-7 shadow-[0_1px_2px_rgba(15,23,42,0.06),0_24px_48px_-16px_rgba(15,23,42,0.18)]"
-          >
-            <div className="flex flex-wrap items-center justify-between gap-2">
-              <div className="flex flex-col">
-                <strong className="text-[17px] font-semibold">Protégé Voice Tutor</strong>
-                <span className="text-sm text-[#64748B]">Coaching in Sabine&apos;s words</span>
-              </div>
-              <span className="inline-flex items-center gap-2 font-[family-name:var(--font-geist-mono)] text-xs text-[#64748B]">
-                <span className="h-2 w-2 rounded-full" style={{ background: ACCENT }} />
-                Live
-              </span>
-            </div>
-
-            <div className="flex justify-center">
-              <Bars />
-            </div>
-
-            <div className="flex flex-col gap-2.5 text-[15px] leading-snug">
-              <Bubble from="tutor">Before you post it: this is 7,200 euros. Where does it go?</Bubble>
-              <Bubble from="you">Opex, like the others?</Bubble>
-              <Bubble from="tutor">
-                Sabine would stop you here. Equipment over 5,000 euros is capex 0400, and only with an asset number.
-              </Bubble>
-            </div>
-
-            <div
-              className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border-[1.5px] border-dashed px-4 py-3.5"
-              style={{ borderColor: ACCENT }}
-            >
-              <span className="text-sm font-medium">Guardrail caught before saving</span>
-              <Link href={DEMO_HREF} className="text-sm font-medium text-[#C2410C] hover:underline">
-                Try it yourself
-              </Link>
-            </div>
-          </section>
+          <TutorPlayback />
         </main>
 
         <section id="trust" aria-label="Trust" className="mb-12 grid gap-4 sm:grid-cols-3">

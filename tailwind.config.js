@@ -1,18 +1,21 @@
 /** @type {import('tailwindcss').Config} */
 
-// Primary brand colors (Blue theme - #08A0E9)
+// Brand color: signal orange. DEFAULT follows the --primary token (a deeper
+// orange that passes contrast as text); the numbered shades are fixed.
 const primaryColors = {
-  50: "#DCEAF0", // ~12% brand blue over the cream surface — icon pill bg
-  100: "#D6EDFA",
-  200: "#B3E1F8",
-  300: "#7ECDF4",
-  400: "#08A0E9", // Primary blue
-  500: "#0890D2",
-  600: "#0880BA",
-  700: "#066A9B",
-  800: "#054E72",
-  900: "#043A55",
-  950: "#022330",
+  DEFAULT: "hsl(var(--primary) / <alpha-value>)",
+  foreground: "hsl(var(--primary-foreground) / <alpha-value>)",
+  50: "#FFF4ED",
+  100: "#FFE6D5",
+  200: "#FFC9A8",
+  300: "#FFA370",
+  400: "#FF5A1F", // signal orange: voice bars, live dots
+  500: "#F04A0E",
+  600: "#C2410C", // text-safe orange on white
+  700: "#9A3412",
+  800: "#7C2D12",
+  900: "#5C2410",
+  950: "#341208",
 };
 
 module.exports = {
@@ -119,9 +122,13 @@ module.exports = {
           "system-ui",
           "sans-serif",
         ],
-        mono: ["ui-monospace", "SFMono-Regular", "Menlo", "monospace"],
+        // Headings that still say font-serif render in the display face.
+        serif: ["var(--font-display)", "ui-sans-serif", "system-ui", "sans-serif"],
+        mono: ["var(--font-mono)", "ui-monospace", "SFMono-Regular", "Menlo", "monospace"],
       },
       borderRadius: {
+        xl: "calc(var(--radius) + 4px)",
+        "2xl": "calc(var(--radius) + 8px)",
         lg: "var(--radius)",
         md: "calc(var(--radius) - 2px)",
         sm: "calc(var(--radius) - 4px)",

@@ -8,7 +8,7 @@ import { ArrowLeft, ArrowRight, CheckCircle2, Layers, Sparkles, RefreshCw } from
 import { toast } from "sonner";
 import { api } from "@/lib/utils";
 import { useLiveSession } from "@/lib/useLiveSession";
-import { Logo } from "@/components/Logo";
+import StageRail from "@/components/ui/StageRail";
 import WorkMapTimeline from "@/components/map/WorkMapTimeline";
 import AgentPanel from "@/components/voice/AgentPanel";
 
@@ -50,15 +50,12 @@ export default function DebriefPage() {
   return (
     <div className="min-h-screen bg-background paper-grid text-foreground">
       {/* Editorial Header */}
-      <header className="border-b border-border bg-card/80 backdrop-blur px-6 py-4 flex items-center justify-between">
+      <header className="border-b border-border bg-card/80 backdrop-blur px-6 py-3 flex flex-wrap gap-3 items-center justify-between">
         <div className="flex items-center gap-4">
           <Link href={`/workflows/${workflowId}`} className="text-muted-foreground hover:text-foreground">
             <ArrowLeft className="h-4 w-4" />
           </Link>
-          <Logo className="text-lg" />
-          <span className="text-xs uppercase tracking-widest px-2 py-0.5 rounded bg-primary/10 text-primary font-mono font-medium">
-            Stage 02 · Debrief &amp; Work Map Synthesis
-          </span>
+          <StageRail workflowId={workflowId} current="debrief" done={1} />
         </div>
         <div className="flex items-center gap-4 text-xs font-mono">
           <span className="text-muted-foreground">
@@ -66,9 +63,9 @@ export default function DebriefPage() {
           </span>
           <Link
             href={`/workflows/${workflowId}/teach`}
-            className="px-3.5 py-1.5 rounded bg-primary text-white font-medium hover:bg-primary/90 transition shadow-sm inline-flex items-center gap-1.5"
+            className="btn btn-primary gap-1.5 font-sans"
           >
-            Open Voice Tutor (Stage 03) <ArrowRight className="h-3.5 w-3.5" />
+            Go to Teach <ArrowRight className="h-3.5 w-3.5" />
           </Link>
         </div>
       </header>
