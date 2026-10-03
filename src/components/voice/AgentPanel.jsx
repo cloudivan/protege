@@ -19,6 +19,7 @@ import { MonitorUp, Phone, Send } from "lucide-react";
 import { toast } from "sonner";
 import { api, noEmDash } from "@/lib/utils";
 import VoiceHud from "@/components/voice/VoiceHud";
+import { createAgentAudioTap } from "@/lib/agentAudioTap";
 
 const VOICE_MODE = process.env.NEXT_PUBLIC_VOICE_MODE === "real" ? "real" : "mock";
 
@@ -75,9 +76,31 @@ function RealPanel({ sessionId, getAt, clientTools, controlRef, onUserTurn, befo
   const connected = conversation.status === "connected";
   const lastAgentLine = [...turns].reverse().find((t) => t.role === "agent")?.text || "";
 
+  // Our own measurement of her audio, as a second source next to the SDK's.
+  const tap = useRef(null);
+  useEffect(() => {
+    if (!connected) return;
+    tap.current = createAgentAudioTap();
+    return () => {
+      tap.current?.close();
+      tap.current = null;
+    };
+  }, [connected]);
+
+  // Her voice level from whichever source hears her: the SDK's analyser or
+  // our tap on her audio element.
+  const herLevel = () => {
+    let sdk = 0;
+    try {
+      sdk = conversation.getOutputVolume() || 0;
+    } catch {}
+    const own = tap.current?.volume() || 0;
+    return { sdk, own, level: Math.max(sdk, own) };
+  };
+
   // Her voice is detected from the actual output level: the SDK's isSpeaking
   // flag lags behind the audio. Bars and subtitles both read this.
-  const voice = useRef({ her: false, since: 0, lastHeard: 0 });
+  const voice = useRef({ her: false, since: 0, lastHeard: 0, sdk: 0, own: 0 });
   const readVoice = () => {
     const v = voice.current;
     const now = performance.now();
@@ -85,7 +108,11 @@ function RealPanel({ sessionId, getAt, clientTools, controlRef, onUserTurn, befo
       v.her = false;
       return v;
     }
-    if (conversation.getOutputVolume() > 0.01) {
+    const { sdk, own, level } = herLevel();
+    v.sdk = sdk;
+    v.own = own;
+    // Her stream is digital silence between lines, so any real signal is her.
+    if (level > 0.002) {
       if (!v.her) v.since = now;
       v.her = true;
       v.lastHeard = now;
@@ -100,7 +127,11 @@ function RealPanel({ sessionId, getAt, clientTools, controlRef, onUserTurn, befo
   const sampleRef = useRef(null);
   sampleRef.current = () => {
     if (conversation.status !== "connected") return { mode: "idle" };
-    if (readVoice().her) return { mode: "speaking", freq: conversation.getOutputByteFrequencyData() };
+    const v = readVoice();
+    if (v.her) {
+      const freq = v.sdk >= v.own ? conversation.getOutputByteFrequencyData() : tap.current?.frequency();
+      return { mode: "speaking", freq };
+    }
     return { mode: "listening", freq: micMuted ? null : conversation.getInputByteFrequencyData() };
   };
   const audioRef = useRef(null);
@@ -108,6 +139,26 @@ function RealPanel({ sessionId, getAt, clientTools, controlRef, onUserTurn, befo
     const v = readVoice();
     return { audible: v.her, since: v.since, cps: cpsRef.current };
   };
+
+  // Debug readout (add ?debug=voice to the URL): live numbers behind the bubble.
+  const [debug, setDebug] = useState(null);
+  const convRef = useRef(conversation);
+  convRef.current = conversation;
+  useEffect(() => {
+    if (!connected || !window.location.search.includes("debug=voice")) return;
+    const id = setInterval(() => {
+      const v = voice.current;
+      const conv = convRef.current;
+      let mic = 0;
+      try {
+        mic = conv.getInputVolume();
+      } catch {}
+      setDebug(
+        `sdk out ${v.sdk.toFixed(3)} · own out ${v.own.toFixed(3)} · tap ${tap.current?.live() ? "on" : "off"} · mic ${mic.toFixed(3)} · sdk mode ${conv.isSpeaking ? "speaking" : "listening"} · her ${v.her ? "yes" : "no"}`,
+      );
+    }, 250);
+    return () => clearInterval(id);
+  }, [connected]);
 
   useEffect(() => {
     controlRef.current = {
@@ -175,6 +226,7 @@ function RealPanel({ sessionId, getAt, clientTools, controlRef, onUserTurn, befo
             <span className={`h-2 w-2 rounded-full ${connected ? "bg-primary animate-pulse" : "bg-muted-foreground/50"}`} />
             {connected ? "On a call. She is in the top right corner." : "Connecting…"}
           </p>
+          {debug && <p className="mt-2 font-mono text-[11px] text-muted-foreground">{debug}</p>}
         </>
       ) : (
         <>
