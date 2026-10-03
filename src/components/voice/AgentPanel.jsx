@@ -147,8 +147,8 @@ function MockPanel({ sessionId, getAt, controlRef, onUserTurn }) {
       sendContext: (text) => {
         setTurns((t) => [...t, { role: "context", text: `[screen] ${text}` }]);
         context.current.push(text);
-        // Like the real agent: only speak on PAUSE.
-        if (text === "PAUSE") {
+        // Like the real agent: only speak on PAUSE, a tutor ALERT or LESSON DONE.
+        if (text === "PAUSE" || text === "LESSON DONE" || text.startsWith("ALERT")) {
           history.current.push({ role: "user", text: `[screen events]\n${context.current.join("\n")}` });
           context.current = [];
           agentTurn();
