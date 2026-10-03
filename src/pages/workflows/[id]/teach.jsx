@@ -16,6 +16,7 @@ import getScenario from "@/config/scenarios";
 import { useLiveSession } from "@/lib/useLiveSession";
 import { usePauseDetector } from "@/lib/usePauseDetector";
 import { openSandboxChannel } from "@/lib/sandboxChannel";
+import { buildTutorVars } from "@/backend/services/agentVars";
 import { Loader } from "@/components/ui/Loader";
 import AgentPanel from "@/components/voice/AgentPanel";
 import ScreenShare from "@/components/capture/ScreenShare";
@@ -221,6 +222,7 @@ export default function TeachPage() {
                 onUserTurn={markActivity}
                 beforeStart={() => shareRef.current?.start() ?? false}
                 onEnd={() => shareRef.current?.stop()}
+                offlineConfig={{ role: "tutor", dynamicVariables: buildTutorVars({ workflow, workMap }) }}
               />
             ) : (
               <div className="card flex justify-center p-5"><Loader /></div>
