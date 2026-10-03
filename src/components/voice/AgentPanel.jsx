@@ -14,12 +14,10 @@
 // them (e.g. sendContextualUpdate).
 
 import { useEffect, useRef, useState } from "react";
-import { createPortal } from "react-dom";
 import { ConversationProvider, useConversation } from "@elevenlabs/react";
-import { MonitorUp, Phone, PictureInPicture2, Send } from "lucide-react";
+import { MonitorUp, Phone, Send } from "lucide-react";
 import { toast } from "sonner";
 import { api, noEmDash } from "@/lib/utils";
-import { usePipWindow } from "@/lib/usePipWindow";
 import VoiceHud from "@/components/voice/VoiceHud";
 
 const VOICE_MODE = process.env.NEXT_PUBLIC_VOICE_MODE === "real" ? "real" : "mock";
@@ -52,9 +50,6 @@ function Transcript({ turns }) {
 }
 
 // ---------------------------------------------------------------- real voice
-// Small and square-ish: Chrome draws it as a normal window, so keep it compact.
-const PIP_SIZE = { width: 240, height: 200 };
-
 function RealPanel({ sessionId, getAt, clientTools, controlRef, onUserTurn, beforeStart, onEnd, showTranscript = false }) {
   const [micMuted, setMicMuted] = useState(false);
   const [starting, setStarting] = useState(false);
@@ -78,23 +73,41 @@ function RealPanel({ sessionId, getAt, clientTools, controlRef, onUserTurn, befo
     onError: (m) => toast.error(m || "Voice session error"),
   });
   const connected = conversation.status === "connected";
-  const pip = usePipWindow();
   const lastAgentLine = [...turns].reverse().find((t) => t.role === "agent")?.text || "";
 
-  // Read live audio levels for the voice bars. A ref, so the animation loop
-  // always sees the current conversation without restarting.
+  // Her voice is detected from the actual output level: the SDK's isSpeaking
+  // flag lags behind the audio. Bars and subtitles both read this.
+  const voice = useRef({ her: false, since: 0, lastHeard: 0 });
+  const readVoice = () => {
+    const v = voice.current;
+    const now = performance.now();
+    if (conversation.status !== "connected") {
+      v.her = false;
+      return v;
+    }
+    if (conversation.getOutputVolume() > 0.01) {
+      if (!v.her) v.since = now;
+      v.her = true;
+      v.lastHeard = now;
+    } else if (now - v.lastHeard > 250) {
+      v.her = false; // short gaps between words still count as talking
+    }
+    return v;
+  };
+
+  // Live audio levels for the voice bars. Refs, so the animation loops always
+  // see the current conversation without restarting.
   const sampleRef = useRef(null);
   sampleRef.current = () => {
     if (conversation.status !== "connected") return { mode: "idle" };
-    if (conversation.isSpeaking) return { mode: "speaking", freq: conversation.getOutputByteFrequencyData() };
+    if (readVoice().her) return { mode: "speaking", freq: conversation.getOutputByteFrequencyData() };
     return { mode: "listening", freq: micMuted ? null : conversation.getInputByteFrequencyData() };
   };
-  // Whether her voice is audible right now, for the subtitle clock.
   const audioRef = useRef(null);
-  audioRef.current = () => ({
-    audible: conversation.status === "connected" && conversation.isSpeaking && conversation.getOutputVolume() > 0.02,
-    cps: cpsRef.current,
-  });
+  audioRef.current = () => {
+    const v = readVoice();
+    return { audible: v.her, since: v.since, cps: cpsRef.current };
+  };
 
   useEffect(() => {
     controlRef.current = {
@@ -103,56 +116,23 @@ function RealPanel({ sessionId, getAt, clientTools, controlRef, onUserTurn, befo
     };
   }, [connected, conversation, controlRef]);
 
-  // Close the floating window once a call that was live has ended.
-  const wasConnected = useRef(false);
-  useEffect(() => {
-    if (connected) wasConnected.current = true;
-    else if (wasConnected.current && conversation.status !== "connecting") {
-      wasConnected.current = false;
-      pip.close();
-    }
-  }, [connected, conversation.status, pip.close]);
-
   const end = () => {
     conversation.endSession();
-    pip.close();
     onEnd?.();
   };
 
   // Runs inside the click so the screen share picker gets the user gesture.
-  // The floating window must NOT open in the same click: it takes focus and
-  // Chrome then cancels the picker. It opens on its own when the user leaves
-  // the tab (below), or from the Pop out button.
   const start = () => {
     setNeedsShare(false);
     const ready = beforeStart ? beforeStart() : true;
     connect(ready);
   };
 
-  // Automatic picture-in-picture (Chrome 134+): while the call is live and
-  // her voice is playing, switching to another tab or app calls this handler,
-  // which may open the floating window without a click.
-  const openPip = pip.open;
-  useEffect(() => {
-    if (!connected || !("mediaSession" in navigator)) return;
-    try {
-      navigator.mediaSession.setActionHandler("enterpictureinpicture", () => openPip(PIP_SIZE));
-    } catch {
-      return; // this browser does not support the action
-    }
-    return () => {
-      try {
-        navigator.mediaSession.setActionHandler("enterpictureinpicture", null);
-      } catch {}
-    };
-  }, [connected, openPip]);
-
   const connect = async (ready) => {
     setStarting(true);
     try {
       if (!(await ready)) {
         // No screen picked: ask again instead of failing.
-        pip.close();
         setNeedsShare(true);
         return;
       }
@@ -169,7 +149,6 @@ function RealPanel({ sessionId, getAt, clientTools, controlRef, onUserTurn, befo
         onDisconnect: () => api(`/api/sessions/${sessionId}`, { method: "PATCH", body: { status: "done" } }),
       });
     } catch (err) {
-      pip.close();
       toast.error(err.message || "Microphone unavailable");
     } finally {
       setStarting(false);
@@ -177,31 +156,24 @@ function RealPanel({ sessionId, getAt, clientTools, controlRef, onUserTurn, befo
   };
 
   const live = connected || starting || conversation.status === "connecting";
-  const hud = (floating) => (
-    <VoiceHud
-      sampleRef={sampleRef}
-      audioRef={audioRef}
-      status={conversation.status}
-      speaking={conversation.isSpeaking}
-      caption={lastAgentLine}
-      micMuted={micMuted}
-      onToggleMute={() => setMicMuted((m) => !m)}
-      onEnd={end}
-      floating={floating}
-    />
-  );
 
   return (
     <>
       {live ? (
         <>
-          {hud(false)}
-          {pip.pipWindow && createPortal(<div className="h-screen bg-background text-foreground">{hud(true)}</div>, pip.pipWindow.document.body)}
-          {connected && pip.supported && !pip.pipWindow && (
-            <button type="button" onClick={() => pip.open(PIP_SIZE)} className="btn btn-secondary mx-auto px-3 py-1.5 text-xs">
-              <PictureInPicture2 className="mr-1.5 h-3.5 w-3.5" /> Pop out
-            </button>
-          )}
+          <VoiceHud
+            sampleRef={sampleRef}
+            audioRef={audioRef}
+            status={conversation.status}
+            caption={lastAgentLine}
+            micMuted={micMuted}
+            onToggleMute={() => setMicMuted((m) => !m)}
+            onEnd={end}
+          />
+          <p className="mt-4 flex items-center gap-2 text-sm text-muted-foreground">
+            <span className={`h-2 w-2 rounded-full ${connected ? "bg-primary animate-pulse" : "bg-muted-foreground/50"}`} />
+            {connected ? "On a call. She is in the top right corner." : "Connecting…"}
+          </p>
         </>
       ) : (
         <>

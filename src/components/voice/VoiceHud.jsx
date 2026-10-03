@@ -1,6 +1,8 @@
-// The live call bubble: voice bars, a few words of what she is saying, and two
-// small round controls. No box around it. Rendered in the page and in the
-// floating PiP window.
+// The live call bubble, pinned to the top right corner of the page for the
+// whole call: round voice bars, a few words of what she is saying, and two
+// small round controls. No box: a soft fade keeps the text readable.
+import { useEffect, useState } from "react";
+import { createPortal } from "react-dom";
 import { Mic, MicOff, PhoneOff } from "lucide-react";
 import VoiceBars from "@/components/voice/VoiceBars";
 import LiveCaption from "@/components/voice/LiveCaption";
@@ -8,22 +10,25 @@ import LiveCaption from "@/components/voice/LiveCaption";
 const roundBtn =
   "flex h-8 w-8 items-center justify-center rounded-full transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-ring";
 
-export default function VoiceHud({ sampleRef, audioRef, status, speaking, caption, micMuted, onToggleMute, onEnd, floating = false }) {
+export default function VoiceHud({ sampleRef, audioRef, status, caption, micMuted, onToggleMute, onEnd }) {
   const connected = status === "connected";
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => setMounted(true), []);
+  if (!mounted) return null; // document.body only exists in the browser
 
-  return (
-    <div className={`flex flex-col items-center justify-center ${floating ? "h-full gap-1.5 px-4 py-3" : "gap-2 py-4"}`}>
-      <VoiceBars sampleRef={sampleRef} className={floating ? "h-16 w-24" : "h-20 w-32"} />
+  // Portaled to <body> so no transformed parent can pull it out of the corner.
+  return createPortal(
+    <div className="voice-halo pointer-events-none fixed right-4 top-4 z-50 flex w-64 animate-fadeIn flex-col items-center gap-1 px-6 pb-4 pt-5">
+      <VoiceBars sampleRef={sampleRef} className="h-14 w-24" />
 
       <LiveCaption
         text={caption}
         audioRef={audioRef}
-        speaking={speaking}
         placeholder={connected ? "" : "Connecting…"}
-        className={`w-full max-w-[16rem] font-medium text-foreground ${floating ? "h-10 text-[13px]" : "h-12 text-sm"}`}
+        className="h-10 w-full text-[13px] font-medium text-foreground"
       />
 
-      <div className="flex items-center gap-2">
+      <div className="pointer-events-auto flex items-center gap-2">
         <button
           type="button"
           onClick={onToggleMute}
@@ -37,6 +42,7 @@ export default function VoiceHud({ sampleRef, audioRef, status, speaking, captio
           <PhoneOff className="h-3.5 w-3.5" />
         </button>
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 }

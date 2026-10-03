@@ -270,3 +270,8 @@ body {
 @media (prefers-reduced-motion: reduce) {
   .word-in { animation: none; }
 }
+
+/* Call bubble: no box, just a soft fade so text stays readable on any page. */
+.voice-halo {
+  background: radial-gradient(closest-side, hsl(var(--background) / 0.95) 55%, hsl(var(--background) / 0.7) 75%, transparent);
+}
