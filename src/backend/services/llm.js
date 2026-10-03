@@ -1,37 +1,62 @@
-// Provider adapter for the engine's LLM calls. OpenAI by default, Anthropic as
-// the fallback flow; switch explicitly with LLM_PROVIDER=openai|anthropic.
+// Provider adapter for the engine's LLM calls. Gemini by default, then OpenAI,
+// then Anthropic; switch explicitly with LLM_PROVIDER=gemini|openai|anthropic.
 // Callers speak one neutral format; all provider wire-format differences live
 // in this file.
+//
+// Gemini runs through Google's OpenAI-compatible endpoint, so it shares the
+// OpenAI code path (chat, tools, json_schema, images) with a different client.
 
 import Anthropic from "@anthropic-ai/sdk";
 import OpenAI from "openai";
 
 const MODELS = {
+	gemini: {
+		fast: process.env.GEMINI_MODEL_FAST || "gemini-2.5-flash",
+		smart: process.env.GEMINI_MODEL_SMART || "gemini-2.5-pro",
+	},
 	openai: { fast: "gpt-4.1-mini", smart: "gpt-4.1" },
 	anthropic: { fast: "claude-sonnet-5", smart: "claude-opus-4-8" },
 };
 
 let anthropicClient = null;
 let openaiClient = null;
+let geminiClient = null;
 const anthropic = () =>
 	(anthropicClient ||= new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY }));
 const openai = () => (openaiClient ||= new OpenAI({ apiKey: process.env.OPENAI_API_KEY }));
+const gemini = () =>
+	(geminiClient ||= new OpenAI({
+		apiKey: process.env.GEMINI_API_KEY,
+		baseURL: "https://generativelanguage.googleapis.com/v1beta/openai/",
+	}));
 
 export const getProvider = () => {
 	const forced = process.env.LLM_PROVIDER;
-	if (forced === "anthropic" || forced === "openai") return forced;
+	if (["gemini", "openai", "anthropic"].includes(forced)) return forced;
+	if (process.env.GEMINI_API_KEY) return "gemini";
 	return process.env.OPENAI_API_KEY ? "openai" : "anthropic";
 };
 
+// Providers that speak the OpenAI chat-completions wire format.
+const isCompat = () => getProvider() !== "anthropic";
+const compat = () => (getProvider() === "gemini" ? gemini() : openai());
+
 const model = (tier) => MODELS[getProvider()][tier] || MODELS[getProvider()].fast;
+
+// Gemini 2.5 Flash thinks by default, and thinking tokens count against
+// max_tokens: a 300-token spoken turn could come back empty. Fast tier is
+// dialogue, so switch it off there (same choice as the Anthropic path).
+const noThinking = (tier) =>
+	getProvider() === "gemini" && tier === "fast" ? { reasoning_effort: "none" } : {};
 
 // ---------------------------------------------------------------------------
 // complete: plain chat. messages = [{ role: "user"|"assistant", text }]
 // ---------------------------------------------------------------------------
 export const complete = async ({ system, messages, maxTokens = 600, tier = "fast" }) => {
-	if (getProvider() === "openai") {
-		const response = await openai().chat.completions.create({
+	if (isCompat()) {
+		const response = await compat().chat.completions.create({
 			model: model(tier),
+			...noThinking(tier),
 			max_tokens: maxTokens,
 			messages: [
 				{ role: "system", content: system },
@@ -63,7 +88,7 @@ export const complete = async ({ system, messages, maxTokens = 600, tier = "fast
 // Returns { text, toolCalls: [{ id, name, input }] }.
 // ---------------------------------------------------------------------------
 export const completeWithTools = async ({ system, history, tools, maxTokens = 600, tier = "fast" }) => {
-	if (getProvider() === "openai") {
+	if (isCompat()) {
 		const messages = [{ role: "system", content: system }];
 		for (const h of history) {
 			if (h.role === "user") messages.push({ role: "user", content: h.text });
@@ -84,8 +109,9 @@ export const completeWithTools = async ({ system, history, tools, maxTokens = 60
 				for (const r of h.results)
 					messages.push({ role: "tool", tool_call_id: r.id, content: r.content });
 		}
-		const response = await openai().chat.completions.create({
+		const response = await compat().chat.completions.create({
 			model: model(tier),
+			...noThinking(tier),
 			max_tokens: maxTokens,
 			messages,
 			tools: tools.map((t) => ({
@@ -154,8 +180,8 @@ export const extractStructured = async ({ prompt, schema, fileBase64, mediaType 
 		const filePart = isPdf
 			? { type: "file", file: { filename: "document.pdf", file_data: `data:${mediaType};base64,${data}` } }
 			: { type: "image_url", image_url: { url: `data:${mediaType};base64,${data}` } };
-		const response = await openai().chat.completions.create({
-			model: MODELS.openai.smart,
+		const response = await compat().chat.completions.create({
+			model: model("smart"),
 			max_tokens: 4096,
 			response_format: {
 				type: "json_schema",
