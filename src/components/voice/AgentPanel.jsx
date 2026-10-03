@@ -15,10 +15,10 @@
 
 import { useEffect, useRef, useState } from "react";
 import { ConversationProvider, useConversation } from "@elevenlabs/react";
-import { MonitorUp, Phone, Send } from "lucide-react";
+import { Mic, MicOff, MonitorUp, Phone, PhoneOff, Send } from "lucide-react";
 import { toast } from "sonner";
 import { api, noEmDash } from "@/lib/utils";
-import VoiceHud from "@/components/voice/VoiceHud";
+import VoiceBars from "@/components/voice/VoiceBars";
 import { createAgentAudioTap } from "@/lib/agentAudioTap";
 
 const VOICE_MODE = process.env.NEXT_PUBLIC_VOICE_MODE === "real" ? "real" : "mock";
@@ -43,7 +43,7 @@ function Transcript({ turns }) {
           {m.role !== "context" && (
             <span className="mr-2 text-xs uppercase tracking-wide text-muted-foreground">{m.role === "user" ? "You" : "Protégé"}</span>
           )}
-          <span>{noEmDash(m.text)}</span>
+          <span>{noEmDash(m.text).replace(/\[[^\]]*\]\s*/g, "")}</span>
         </div>
       ))}
     </div>
@@ -51,12 +51,17 @@ function Transcript({ turns }) {
 }
 
 // ---------------------------------------------------------------- real voice
-function RealPanel({ sessionId, getAt, clientTools, controlRef, onUserTurn, beforeStart, onEnd, showTranscript = false, hudPosition }) {
+// How long her reply keeps the bars "speaking" when no audio level can be
+// read: an estimate from the text length (about 15 characters per second).
+const SPEECH_CPS = 15;
+
+function RealPanel({ sessionId, getAt, clientTools, controlRef, onUserTurn, beforeStart, onEnd }) {
   const [micMuted, setMicMuted] = useState(false);
   const [starting, setStarting] = useState(false);
   const [needsShare, setNeedsShare] = useState(false);
   const [turns, setTurns] = useState([]);
-  const cpsRef = useRef(15); // her speech rate in characters per second
+  // Until when her latest line is expected to be playing (performance.now ms).
+  const herUntil = useRef(0);
   const conversation = useConversation({
     micMuted,
     onMessage: ({ message, role }) => {
@@ -64,19 +69,13 @@ function RealPanel({ sessionId, getAt, clientTools, controlRef, onUserTurn, befo
       setTurns((t) => [...t, { role: r, text: message }]);
       logTurn(sessionId, r, message, getAt());
       if (r === "user") onUserTurn?.(message);
-    },
-    // Timing of the characters in each audio chunk: gives her real speech rate.
-    onAudioAlignment: ({ chars, char_start_times_ms: starts, char_durations_ms: durs } = {}) => {
-      const n = chars?.length;
-      const ms = n ? starts[n - 1] + (durs?.[n - 1] || 0) : 0;
-      if (ms > 300) cpsRef.current = cpsRef.current * 0.6 + ((n / ms) * 1000) * 0.4;
+      if (r === "agent") herUntil.current = performance.now() + Math.max(1500, (message.length / SPEECH_CPS) * 1000);
     },
     onError: (m) => toast.error(m || "Voice session error"),
   });
   const connected = conversation.status === "connected";
-  const lastAgentLine = [...turns].reverse().find((t) => t.role === "agent")?.text || "";
 
-  // Our own measurement of her audio, as a second source next to the SDK's.
+  // Our own measurement of her audio element, next to the SDK's analyser.
   const tap = useRef(null);
   useEffect(() => {
     if (!connected) return;
@@ -87,78 +86,28 @@ function RealPanel({ sessionId, getAt, clientTools, controlRef, onUserTurn, befo
     };
   }, [connected]);
 
-  // Her voice level from whichever source hears her: the SDK's analyser or
-  // our tap on her audio element.
-  const herLevel = () => {
+  // Is she talking? Any one of these signals is enough: her audio level from
+  // the SDK, her audio level from our tap, the SDK's speaking flag, or a reply
+  // that just arrived and is still being read out.
+  const sampleRef = useRef(null);
+  sampleRef.current = () => {
+    if (conversation.status !== "connected") return { mode: "idle" };
     let sdk = 0;
     try {
       sdk = conversation.getOutputVolume() || 0;
     } catch {}
     const own = tap.current?.volume() || 0;
-    return { sdk, own, level: Math.max(sdk, own) };
-  };
-
-  // Her voice is detected from the actual output level: the SDK's isSpeaking
-  // flag lags behind the audio. Bars and subtitles both read this.
-  const voice = useRef({ her: false, since: 0, lastHeard: 0, sdk: 0, own: 0 });
-  const readVoice = () => {
-    const v = voice.current;
-    const now = performance.now();
-    if (conversation.status !== "connected") {
-      v.her = false;
-      return v;
-    }
-    const { sdk, own, level } = herLevel();
-    v.sdk = sdk;
-    v.own = own;
-    // Her stream is digital silence between lines, so any real signal is her.
-    if (level > 0.002) {
-      if (!v.her) v.since = now;
-      v.her = true;
-      v.lastHeard = now;
-    } else if (now - v.lastHeard > 250) {
-      v.her = false; // short gaps between words still count as talking
-    }
-    return v;
-  };
-
-  // Live audio levels for the voice bars. Refs, so the animation loops always
-  // see the current conversation without restarting.
-  const sampleRef = useRef(null);
-  sampleRef.current = () => {
-    if (conversation.status !== "connected") return { mode: "idle" };
-    const v = readVoice();
-    if (v.her) {
-      const freq = v.sdk >= v.own ? conversation.getOutputByteFrequencyData() : tap.current?.frequency();
+    const her = sdk > 0.002 || own > 0.002 || conversation.isSpeaking || performance.now() < herUntil.current;
+    if (her) {
+      // Frequency data from whichever source hears her. None means the bars
+      // run their own speaking animation.
+      let freq = null;
+      if (sdk > 0.002) freq = conversation.getOutputByteFrequencyData();
+      else if (own > 0.002) freq = tap.current.frequency();
       return { mode: "speaking", freq };
     }
     return { mode: "listening", freq: micMuted ? null : conversation.getInputByteFrequencyData() };
   };
-  const audioRef = useRef(null);
-  audioRef.current = () => {
-    const v = readVoice();
-    return { audible: v.her, since: v.since, cps: cpsRef.current };
-  };
-
-  // Debug readout (add ?debug=voice to the URL): live numbers behind the bubble.
-  const [debug, setDebug] = useState(null);
-  const convRef = useRef(conversation);
-  convRef.current = conversation;
-  useEffect(() => {
-    if (!connected || !window.location.search.includes("debug=voice")) return;
-    const id = setInterval(() => {
-      const v = voice.current;
-      const conv = convRef.current;
-      let mic = 0;
-      try {
-        mic = conv.getInputVolume();
-      } catch {}
-      setDebug(
-        `sdk out ${v.sdk.toFixed(3)} · own out ${v.own.toFixed(3)} · tap ${tap.current?.live() ? "on" : "off"} · mic ${mic.toFixed(3)} · sdk mode ${conv.isSpeaking ? "speaking" : "listening"} · her ${v.her ? "yes" : "no"}`,
-      );
-    }, 250);
-    return () => clearInterval(id);
-  }, [connected]);
 
   useEffect(() => {
     controlRef.current = {
@@ -210,43 +159,36 @@ function RealPanel({ sessionId, getAt, clientTools, controlRef, onUserTurn, befo
 
   return (
     <>
-      {live ? (
-        <>
-          <VoiceHud
-            sampleRef={sampleRef}
-            audioRef={audioRef}
-            status={conversation.status}
-            caption={lastAgentLine}
-            micMuted={micMuted}
-            onToggleMute={() => setMicMuted((m) => !m)}
-            onEnd={end}
-            position={hudPosition}
-          />
-          <p className="mt-4 flex items-center gap-2 text-sm text-muted-foreground">
-            <span className={`h-2 w-2 rounded-full ${connected ? "bg-primary animate-pulse" : "bg-muted-foreground/50"}`} />
-            {connected ? "On a call. She is in the top right corner." : "Connecting…"}
-          </p>
-          {debug && <p className="mt-2 font-mono text-[11px] text-muted-foreground">{debug}</p>}
-        </>
+      {live && <VoiceBars sampleRef={sampleRef} className="mx-auto mt-4 h-14 w-24" />}
+      <Transcript turns={turns} />
+      {needsShare && !live ? (
+        <div className="mt-4 flex flex-col items-center gap-3 py-2 text-center">
+          <p className="text-sm text-muted-foreground">Which screen should she watch? Pick the tab or window you will work in.</p>
+          <button type="button" onClick={start} className="btn btn-primary">
+            <MonitorUp className="mr-2 h-4 w-4" /> Choose screen
+          </button>
+        </div>
       ) : (
-        <>
-          {showTranscript && <Transcript turns={turns} />}
-          {needsShare ? (
-            <div className="mt-4 flex flex-col items-center gap-3 py-2 text-center">
-              <p className="text-sm text-muted-foreground">Which screen should she watch? Pick the tab or window you will work in.</p>
-              <button type="button" onClick={start} className="btn btn-primary">
-                <MonitorUp className="mr-2 h-4 w-4" /> Choose screen
+        <div className="mt-4 flex items-center gap-2">
+          {connected ? (
+            <>
+              <button type="button" onClick={() => setMicMuted((m) => !m)} className={`btn ${micMuted ? "btn-secondary" : "btn-primary"}`}>
+                {micMuted ? <MicOff className="mr-2 h-4 w-4" /> : <Mic className="mr-2 h-4 w-4" />}
+                {micMuted ? "Unmute" : "Mute"}
               </button>
-            </div>
+              <button type="button" onClick={end} className="btn btn-secondary">
+                <PhoneOff className="mr-2 h-4 w-4" /> End
+              </button>
+            </>
           ) : (
-            <div className="mt-4 flex items-center gap-2">
-              <button type="button" onClick={start} className="btn btn-primary">
-                <Phone className="mr-2 h-4 w-4" /> Start
-              </button>
-              <span className="ml-auto text-xs text-muted-foreground">Not connected</span>
-            </div>
+            <button type="button" onClick={start} disabled={live} className="btn btn-primary disabled:opacity-50">
+              <Phone className="mr-2 h-4 w-4" /> {live ? "Connecting…" : "Start"}
+            </button>
           )}
-        </>
+          <span className="ml-auto text-xs text-muted-foreground">
+            {connected ? (conversation.isSpeaking ? "Speaking" : "Listening") : live ? "Connecting…" : "Not connected"}
+          </span>
+        </div>
       )}
       {/* Surface SDK connection errors instead of failing silently. */}
       {conversation.status === "error" && (

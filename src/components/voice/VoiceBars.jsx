@@ -2,6 +2,8 @@
 // `sampleRef.current()` returns { mode: "speaking" | "listening" | "idle", freq }
 // where freq is the SDK's byte frequency array (1024 bins, 100 Hz to 8 kHz).
 // At rest the bars are dots; with voice they stretch into pills.
+// Color note: the Tailwind "primary" scale has no DEFAULT, so plain bg-primary
+// renders no color. The brand terracotta is the --primary CSS variable.
 import { useEffect, useRef } from "react";
 
 const BARS = 5;
@@ -79,7 +81,7 @@ export default function VoiceBars({ sampleRef, className = "" }) {
       {Array.from({ length: BARS }, (_, i) => (
         <span
           key={i}
-          className="w-[13%] rounded-full bg-primary transition-colors duration-300 group-data-[mode=idle]:bg-foreground/40 group-data-[mode=listening]:bg-foreground/70"
+          className="w-[13%] rounded-full bg-[hsl(var(--primary))] transition-colors duration-300 group-data-[mode=idle]:bg-foreground/40 group-data-[mode=listening]:bg-foreground/70"
           style={{ height: `${MIN * 100}%` }}
         />
       ))}

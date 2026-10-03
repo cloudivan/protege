@@ -135,7 +135,6 @@ export default function CapturePage() {
               controlRef={controlRef}
               beforeStart={() => shareRef.current?.start() ?? false}
               onEnd={() => shareRef.current?.stop()}
-              hudPosition="right-4 top-20"
               title="Protégé Apprentice Companion"
               subtitle="Observing screen transitions. Silently waiting for natural pauses to clarify unwritten rules."
             />
