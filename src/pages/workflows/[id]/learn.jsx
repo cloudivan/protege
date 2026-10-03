@@ -22,6 +22,7 @@ import { usePauseDetector } from "@/lib/usePauseDetector";
 import { useQuestionPlanner } from "@/lib/useQuestionPlanner";
 import { useDebriefTools } from "@/lib/useDebriefTools";
 import { openSandboxChannel } from "@/lib/sandboxChannel";
+import getScenario from "@/config/scenarios";
 import { Loader } from "@/components/ui/Loader";
 import AgentPanel from "@/components/voice/AgentPanel";
 import ScreenShare from "@/components/capture/ScreenShare";
@@ -345,6 +346,7 @@ export default function LearnPage() {
           <div>
             <span className="rounded bg-primary/10 px-2 py-0.5 font-mono text-xs uppercase tracking-widest text-primary">Learn · {workflow.expertName || "Expert"} teaches Protégé</span>
             <h1 className="mt-2 font-serif text-2xl font-bold">{workflow.title}</h1>
+            {(workflow.domain || workflow.useCase) && <p className="text-sm text-muted-foreground">{workflow.domain || workflow.useCase}</p>}
           </div>
           <Stepper phase={phase} />
         </div>
@@ -357,7 +359,9 @@ export default function LearnPage() {
                   Do the task the way you always do and talk if you like. Protégé watches the screen, stays quiet while you work and asks short questions at natural pauses. Click <strong>Start</strong>, choose the screen or tab you work in, then begin.
                 </p>
                 <div className="mt-4 flex flex-wrap items-center gap-2">
-                  <a href="/sandbox/erp?set=capture" target="_blank" rel="noreferrer" className="btn btn-secondary"><ExternalLink className="mr-2 h-4 w-4" /> Open sandbox ERP</a>
+                  {getScenario(workflow.scenario)?.sandbox && (
+                    <a href="/sandbox/erp?set=capture" target="_blank" rel="noreferrer" className="btn btn-secondary"><ExternalLink className="mr-2 h-4 w-4" /> Open sandbox ERP</a>
+                  )}
                   {capture && <OffRecordButton sessionId={capture._id} getAt={getAt} />}
                   <button type="button" onClick={finishCapture} disabled={!capture || !sharing} className="btn btn-primary ml-auto disabled:opacity-50">
                     <CheckCircle2 className="mr-2 h-4 w-4" /> Finished, start the debrief

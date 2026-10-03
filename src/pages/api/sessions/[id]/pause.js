@@ -1,7 +1,7 @@
 import dbConnect from "@/lib/dbConnect";
 import Session from "@/backend/models/session";
 import Workflow from "@/backend/models/workflow";
-import getScenario from "@/config/scenarios";
+import { scenarioFor } from "@/backend/services/useCase";
 import { planQuestion, captureStats } from "@/backend/services/questionPlanner";
 
 // POST { at } -> { ask, question?, kind?, reason?, stats }
@@ -18,7 +18,7 @@ export default async function handler(req, res) {
     if (session.kind !== "capture") return res.status(400).json({ error: "Only capture sessions plan questions" });
     const workflow = await Workflow.findById(session.workflowId);
 
-    const plan = await planQuestion({ session, workflow, scenario: getScenario(workflow?.scenario), at });
+    const plan = await planQuestion({ session, workflow, scenario: scenarioFor(workflow), at });
     if (plan.ask) {
       session.questions.push({ at, text: plan.question, kind: plan.kind, aboutEventAt: plan.aboutEventAt, planned: true, rationale: plan.rationale });
       await session.save();

@@ -20,9 +20,10 @@ create workflow ─► capture session ─► POST map (draft) ─► debrief se
 | Method & path | Body | Returns |
 |---|---|---|
 | `GET /api/workflows` | | `{ workflows }` |
-| `POST /api/workflows` | `{ title, scenario, expertName }` | `{ workflow }` |
+| `POST /api/workflows` | `{ title, expertName, useCase, scenario? }` | `{ workflow }` (`useCase` is free text; `scenario: "invoices"` = demo preset with sandbox) |
 | `GET /api/workflows/[id]` | | `{ workflow, sessions, workMap }` (`id` may be `demo`) |
 | `POST /api/workflows/[id]/map` | `{ finalize?: boolean }` | `{ workMap }` |
+| `GET /api/workflows/[id]/protocol` | `?format=md` for a download | `{ protocol, markdown }` |
 
 `POST .../map` builds a new Work Map version from every capture and debrief session
 (10 to 30 s). Call it once after capture (draft + open questions for the debrief),
@@ -43,9 +44,11 @@ lists what was removed and why (good for a "verified" badge in the UI).
 | `POST /api/sessions/[id]/frame` | `{ frameBase64, at }` | `{ activity, events }` (ScreenShare does this) |
 | `POST /api/sessions/[id]/transcript` | `{ role: agent\|user, text, at }` | `{ turnIndex }` (AgentPanel does this) |
 | `POST /api/sessions/[id]/off-record` | `{ on: boolean, at }` | |
+| `POST /api/sessions/[id]/pause` | `{ at }` | `{ ask, question?, kind?, reason?, stats }` (capture: the question planner; use `useQuestionPlanner`) |
+| `POST /api/sessions/[id]/events` | `{ events: [{ at, type, summary }] }` | `{ stored }` (exact actions, e.g. from the sandbox) |
 | `POST /api/sessions/[id]/resolve-question` | `{ index, answer, at }` | `{ resolved, openLeft }` (debrief only) |
 | `POST /api/sessions/[id]/teach-back` | `{ summary, corrections: [], at }` | `{ confirmed, openLeft }` (debrief only) |
-| `POST /api/sessions/[id]/guardrail-check` | `{ at, action: { type, summary, invoice } }` | `{ verdict }` (teach only, sandbox ERP does this) |
+| `POST /api/sessions/[id]/guardrail-check` | `{ at, action: { type, summary, invoice? }, storeEvent? }` | `{ verdict }` (teach only; sandbox before save, or per screen event) |
 | `POST /api/sessions/[id]/intervention` | `{ at, stepIndex, guardrail, learnerAction, outcome }` | (teach only) |
 | `POST /api/sessions/[id]/mastery` | `{ mastered?, practice? }` | `{ mastery }` (teach only; empty body = summarize) |
 | `GET /api/frames/[id]` | | the stored screen frame (`<img src={"/" + frameKey}>`) |

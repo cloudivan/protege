@@ -2,7 +2,7 @@ import dbConnect from "@/lib/dbConnect";
 import Session from "@/backend/models/session";
 import Workflow from "@/backend/models/workflow";
 import WorkMap from "@/backend/models/workMap";
-import getScenario from "@/config/scenarios";
+import { scenarioFor } from "@/backend/services/useCase";
 import { buildInterviewerVars, buildTutorVars } from "@/backend/services/agentVars";
 
 const AGENT_IDS = {
@@ -19,8 +19,8 @@ export default async function handler(req, res) {
     const session = await Session.findById(req.body?.sessionId);
     if (!session) return res.status(404).json({ error: "Session not found" });
     const workflow = await Workflow.findById(session.workflowId);
-    const scenario = getScenario(workflow?.scenario);
-    if (!scenario) return res.status(400).json({ error: "Unknown scenario" });
+    if (!workflow) return res.status(404).json({ error: "Workflow not found" });
+    const scenario = scenarioFor(workflow);
     const workMap = workflow.workMapId ? await WorkMap.findById(workflow.workMapId) : null;
 
     const role = session.kind === "teach" ? "tutor" : "interviewer";
