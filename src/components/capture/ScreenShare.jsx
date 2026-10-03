@@ -17,7 +17,12 @@ function thumbDiff(a, b) {
   return d / (a.length * 0.75 * 255);
 }
 
-export default function ScreenShare({ sessionId, getAt, onEvents, onSharingChange }) {
+// `shareRef` (optional) exposes start() so another control can open the picker.
+// start() resolves true once sharing, false if the user cancelled.
+// `hideUntilSharing` hides the card (and its Share button) until a share is live.
+// `headless` never shows the card: the share runs, frames are still read from
+// an invisible video element.
+export default function ScreenShare({ sessionId, getAt, onEvents, onSharingChange, shareRef, hideUntilSharing = false, headless = false }) {
   const videoRef = useRef(null);
   const streamRef = useRef(null);
   const lastThumb = useRef(null);
@@ -32,6 +37,7 @@ export default function ScreenShare({ sessionId, getAt, onEvents, onSharingChang
   };
 
   const start = async () => {
+    if (streamRef.current) return true;
     try {
       const stream = await navigator.mediaDevices.getDisplayMedia({ video: { frameRate: 5 }, audio: false });
       streamRef.current = stream;
@@ -40,10 +46,15 @@ export default function ScreenShare({ sessionId, getAt, onEvents, onSharingChang
       stream.getVideoTracks()[0].addEventListener("ended", stop);
       setSharing(true);
       onSharingChange?.(true);
+      return true;
     } catch (e) {
-      toast.error(e.message || "Screen share cancelled");
+      // Cancelling the picker is not an error: the caller asks again.
+      if (e.name !== "NotAllowedError") toast.error(e.message || "Screen share failed");
+      return false;
     }
   };
+
+  if (shareRef) shareRef.current = { start, stop };
 
   useEffect(() => {
     if (!sharing) return;
@@ -84,8 +95,13 @@ export default function ScreenShare({ sessionId, getAt, onEvents, onSharingChang
 
   useEffect(() => stop, []); // eslint-disable-line react-hooks/exhaustive-deps
 
+  if (headless) {
+    // Invisible but still playing, so frames can be drawn from it.
+    return <video ref={videoRef} muted playsInline aria-hidden="true" className="pointer-events-none fixed left-0 top-0 h-px w-px opacity-0" />;
+  }
+
   return (
-    <section className="card p-5">
+    <section className={`card p-5 ${hideUntilSharing && !sharing ? "hidden" : ""}`}>
       <div className="flex items-center justify-between">
         <h2 className="font-semibold">Screen</h2>
         {sharing ? (

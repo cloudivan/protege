@@ -30,6 +30,7 @@ export default function TeachPage() {
   const [data, setData] = useState(null);
   const { session, getAt } = useLiveSession(data?.workMap ? data.workflow._id : null, "teach", LEARNER);
   const controlRef = useRef(null);
+  const shareRef = useRef(null);
   const sandboxSeen = useRef(false);
   const [events, setEvents] = useState([]);
   const [alert, setAlert] = useState(null);
@@ -154,9 +155,10 @@ export default function TeachPage() {
             <p className="text-sm text-muted-foreground">
               A case {expertName} never showed. The tutor coaches in {expertName}&apos;s words and steps in before a guardrail is broken.
             </p>
-          </div>
-          <div className="font-mono text-xs text-muted-foreground">
-            Learner: <span className="font-semibold text-foreground">{LEARNER}</span>
+            {/* Left side on purpose: the top right corner holds the call bubble. */}
+            <p className="mt-1 font-mono text-xs text-muted-foreground">
+              Learner: <span className="font-semibold text-foreground">{LEARNER}</span>
+            </p>
           </div>
         </div>
 
@@ -193,7 +195,7 @@ export default function TeachPage() {
               )}
               <ol className="list-decimal space-y-1 pl-5 text-sm text-muted-foreground">
                 <li>Open the sandbox ERP in a new tab.</li>
-                <li>Share that tab below, then start the tutor.</li>
+                <li>Press Start and share that tab. The tutor joins right after.</li>
                 <li>Process the invoice. Talk to the tutor whenever you like.</li>
               </ol>
               {sandboxUrl && (
@@ -203,7 +205,7 @@ export default function TeachPage() {
               )}
             </div>
 
-            {session && <ScreenShare sessionId={session._id} getAt={getAt} onEvents={onVisionEvents} />}
+            {session && <ScreenShare sessionId={session._id} getAt={getAt} onEvents={onVisionEvents} shareRef={shareRef} headless />}
             <EventFeed events={events} />
           </section>
 
@@ -218,6 +220,8 @@ export default function TeachPage() {
                 clientTools={clientTools}
                 controlRef={controlRef}
                 onUserTurn={markActivity}
+                beforeStart={() => shareRef.current?.start() ?? false}
+                onEnd={() => shareRef.current?.stop()}
               />
             ) : (
               <div className="card flex justify-center p-5"><Loader /></div>
