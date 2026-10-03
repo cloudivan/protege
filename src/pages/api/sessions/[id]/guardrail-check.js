@@ -4,7 +4,7 @@ import Workflow from "@/backend/models/workflow";
 import WorkMap from "@/backend/models/workMap";
 import { checkAction } from "@/backend/services/guardrailCheck";
 
-// POST { at, action: { type, invoice: {...}, summary } } -> verdict
+// POST { at, action: { type, summary, invoice? }, storeEvent? } -> verdict
 // Called by the sandbox ERP before it commits a save in a teach session. The
 // action is stored as a screen event either way; a violation is logged as a
 // "caught" intervention server-side, so the evidence exists even if the voice
@@ -13,7 +13,7 @@ export default async function handler(req, res) {
   if (req.method !== "POST") return res.status(405).json({ error: "Method not allowed" });
   try {
     await dbConnect();
-    const { at = 0, action } = req.body || {};
+    const { at = 0, action, storeEvent = true } = req.body || {};
     if (!action?.type) return res.status(400).json({ error: "action.type is required" });
     const session = await Session.findById(req.query.id);
     if (!session) return res.status(404).json({ error: "Session not found" });
@@ -25,7 +25,8 @@ export default async function handler(req, res) {
 
     const verdict = await checkAction({ workMap, action });
 
-    session.events.push({ at, type: action.type, summary: action.summary || action.type, data: action.invoice });
+    // Vision events are already stored by the frame endpoint.
+    if (storeEvent) session.events.push({ at, type: action.type, summary: action.summary || action.type, data: action.invoice });
     if (verdict.violation) {
       session.interventions.push({
         at,

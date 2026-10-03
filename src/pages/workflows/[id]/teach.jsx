@@ -79,7 +79,22 @@ export default function TeachPage() {
     [session, finishing],
   );
 
-  // Sandbox tab -> tutor
+  // A guardrail verdict (from the sandbox or from a screen event check) becomes
+  // the tutor's ALERT while the learner can still fix it.
+  const onVerdict = useCallback(
+    (event, v) => {
+      if (v.violation) {
+        setAlert(v);
+        setInterventions((xs) => [...xs, { at: getAt(), stepIndex: v.stepIndex, guardrail: v.guardrail, learnerAction: event.summary, outcome: "caught" }]);
+        send(`ALERT step ${v.stepIndex}: ${v.guardrail}. ${v.explanation || ""} ${expertName} said: "${v.expertReason || ""}"`);
+      } else {
+        setAlert(null);
+      }
+    },
+    [getAt, expertName],
+  );
+
+  // Sandbox tab -> tutor (preset use cases: exact actions, checked before save)
   useEffect(() => {
     if (!session) return;
     const ch = openSandboxChannel((msg) => {
@@ -87,28 +102,32 @@ export default function TeachPage() {
       if (msg.type === "event") addEvent(msg.event);
       if (msg.type === "verdict") {
         addEvent(msg.event);
-        if (msg.verdict.violation) {
-          const v = msg.verdict;
-          setAlert(v);
-          setInterventions((xs) => [...xs, { at: getAt(), stepIndex: v.stepIndex, guardrail: v.guardrail, learnerAction: msg.event.summary, outcome: "caught" }]);
-          send(`ALERT step ${v.stepIndex}: ${v.guardrail}. ${v.explanation || ""} ${expertName} said: "${v.expertReason || ""}"`);
-        } else {
-          setAlert(null);
-        }
+        onVerdict(msg.event, msg.verdict);
       }
       if (msg.type === "done") send("LESSON DONE");
     });
     return () => ch.close();
-  }, [session, addEvent, getAt, expertName]);
+  }, [session, addEvent, onVerdict]);
 
   // Vision path: only when the sandbox is not reporting exact events.
+  // Any other tool (custom use cases): screen events come from vision, and
+  // every action that decides something is checked against the Work Map.
   const onVisionEvents = useCallback(
     (evts, activity) => {
       if (activity && activity !== "idle") markActivity();
       if (sandboxSeen.current) return;
-      evts.forEach((e) => addEvent(e));
+      for (const e of evts) {
+        addEvent(e);
+        if (!session || ["opened_record", "navigated"].includes(e.type)) continue;
+        api(`/api/sessions/${session._id}/guardrail-check`, {
+          method: "POST",
+          body: { at: e.at, storeEvent: false, action: { type: e.type, summary: e.summary } },
+        })
+          .then(({ verdict }) => onVerdict(e, verdict))
+          .catch(() => {});
+      }
     },
-    [addEvent, markActivity],
+    [addEvent, markActivity, session, onVerdict],
   );
 
   const clientTools = useMemo(
@@ -140,7 +159,8 @@ export default function TeachPage() {
     return <p className="mx-auto max-w-3xl px-6 py-10 text-sm text-muted-foreground">Build the Work Map first (capture and debrief), or run <code>npm run seed</code> for the demo map.</p>;
   }
 
-  const sandboxUrl = session ? `/sandbox/erp?set=teach&scenario=${workflow.scenario}&session=${session._id}` : null;
+  // Only preset use cases come with the sandbox ERP and a prepared case.
+  const sandboxUrl = session && scenario?.sandbox ? `/sandbox/erp?set=teach&scenario=${workflow.scenario}&session=${session._id}` : null;
   const teachCase = scenario?.cases?.teach?.[0];
 
   return (
@@ -193,11 +213,19 @@ export default function TeachPage() {
                   </div>
                 </div>
               )}
-              <ol className="list-decimal space-y-1 pl-5 text-sm text-muted-foreground">
-                <li>Open the sandbox ERP in a new tab.</li>
-                <li>Press Start and share that tab. The tutor joins right after.</li>
-                <li>Process the invoice. Talk to the tutor whenever you like.</li>
-              </ol>
+              {scenario?.sandbox ? (
+                <ol className="list-decimal space-y-1 pl-5 text-sm text-muted-foreground">
+                  <li>Open the sandbox ERP in a new tab.</li>
+                  <li>Press Start and share that tab. The tutor joins right after.</li>
+                  <li>Process the invoice. Talk to the tutor whenever you like.</li>
+                </ol>
+              ) : (
+                <ol className="list-decimal space-y-1 pl-5 text-sm text-muted-foreground">
+                  <li>Open the tool you work in, with a case {expertName} has not shown you.</li>
+                  <li>Press Start and share that window. The tutor joins right after.</li>
+                  <li>Work the case. The tutor watches and steps in if a step breaks one of {expertName}&apos;s rules.</li>
+                </ol>
+              )}
               {sandboxUrl && (
                 <a href={sandboxUrl} target="_blank" rel="noreferrer" className="btn btn-primary">
                   <ExternalLink className="mr-2 h-4 w-4" /> Open sandbox ERP
