@@ -36,7 +36,8 @@ export function usePipWindow() {
       return Promise.resolve(dpip.window);
     }
     return dpip
-      .requestWindow({ width, height })
+      // No "back to tab" button: the window holds its own controls.
+      .requestWindow({ width, height, disallowReturnToOpener: true })
       .then((win) => {
         copyStyles(win);
         win.addEventListener("pagehide", () => setPipWindow(null));

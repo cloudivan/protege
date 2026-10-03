@@ -8,7 +8,7 @@ import LiveCaption from "@/components/voice/LiveCaption";
 const roundBtn =
   "flex h-8 w-8 items-center justify-center rounded-full transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-ring";
 
-export default function VoiceHud({ sampleRef, status, speaking, caption, micMuted, onToggleMute, onEnd, floating = false }) {
+export default function VoiceHud({ sampleRef, audioRef, status, speaking, caption, micMuted, onToggleMute, onEnd, floating = false }) {
   const connected = status === "connected";
 
   return (
@@ -17,6 +17,7 @@ export default function VoiceHud({ sampleRef, status, speaking, caption, micMute
 
       <LiveCaption
         text={caption}
+        audioRef={audioRef}
         speaking={speaking}
         placeholder={connected ? "" : "Connecting…"}
         className={`w-full max-w-[16rem] font-medium text-foreground ${floating ? "h-10 text-[13px]" : "h-12 text-sm"}`}

@@ -21,6 +21,7 @@ export default function CapturePage() {
   const [workflow, setWorkflow] = useState(null);
   const { session, getAt } = useLiveSession(workflowId, "capture", "Expert");
   const controlRef = useRef(null);
+  const shareRef = useRef(null);
   const [events, setEvents] = useState([]);
   const [sharing, setSharing] = useState(false);
 
@@ -113,6 +114,8 @@ export default function CapturePage() {
               getAt={getAt}
               onEvents={handleEvents}
               onSharingChange={setSharing}
+              shareRef={shareRef}
+              hideUntilSharing
             />
           ) : (
             <div className="sketch-border bg-card p-12 rounded text-center text-sm text-muted-foreground">
@@ -130,6 +133,8 @@ export default function CapturePage() {
               sessionId={session._id}
               getAt={getAt}
               controlRef={controlRef}
+              beforeStart={() => shareRef.current?.start() ?? false}
+              onEnd={() => shareRef.current?.stop()}
               title="Protégé Apprentice Companion"
               subtitle="Observing screen transitions. Silently waiting for natural pauses to clarify unwritten rules."
             />

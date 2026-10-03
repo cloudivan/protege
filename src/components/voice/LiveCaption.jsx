@@ -1,41 +1,68 @@
 // The agent's latest line as short subtitles: a few words at a time, each
-// group replacing the last, revealed word by word at roughly speaking pace.
-// Clears itself a moment after she stops talking.
+// group replacing the last. Words follow her actual voice: a character clock
+// only runs while her audio is audible, at the speech rate the voice SDK
+// reports, so pauses in her speech pause the words too.
+//
+// `audioRef.current()` returns { audible, cps } (cps = characters per second).
 import { useEffect, useMemo, useRef, useState } from "react";
 import { noEmDash } from "@/lib/utils";
 
 const GROUP = 4; // words on screen at once
-const WORD_MS = 330; // about 180 words per minute, close to her speech
-const CATCH_UP_MS = 120; // once she stops talking, finish the line quicker
+const FLUSH_CPS = 60; // after she stops, finish any words the clock missed
 const HOLD_MS = 2200; // how long the last words stay after she stops
 
-export default function LiveCaption({ text, speaking, placeholder = "", className = "" }) {
+export default function LiveCaption({ text, audioRef, speaking, placeholder = "", className = "" }) {
   const ref = useRef(null);
   const words = useMemo(() => noEmDash(text).split(/\s+/).filter(Boolean), [text]);
+  // Character offset where each word starts.
+  const starts = useMemo(() => {
+    let n = 0;
+    return words.map((w) => {
+      const s = n;
+      n += w.length + 1;
+      return s;
+    });
+  }, [words]);
   const [shown, setShown] = useState(0);
   const [cleared, setCleared] = useState(false);
+  const speakingRef = useRef(speaking);
+  speakingRef.current = speaking;
 
+  // Run the clock on the window this caption lives in (it may be the
+  // Picture-in-Picture window while the page's tab is in the background).
   useEffect(() => {
     setShown(0);
     setCleared(false);
-  }, [text]);
-
-  // Use the timers of the window this caption lives in (it may be the
-  // Picture-in-Picture window while the page's tab is in the background).
-  const win = () => ref.current?.ownerDocument?.defaultView || window;
-
-  useEffect(() => {
-    if (shown >= words.length) return;
-    const w = win();
-    const id = w.setTimeout(() => setShown((n) => n + 1), speaking ? WORD_MS : CATCH_UP_MS);
-    return () => w.clearTimeout(id);
-  }, [shown, words.length, speaking]);
+    if (!words.length) return;
+    const win = ref.current?.ownerDocument?.defaultView || window;
+    let spoken = 0;
+    let heard = false;
+    let last = win.performance.now();
+    let raf;
+    const tick = (now) => {
+      const dt = Math.min(100, now - last);
+      last = now;
+      const { audible, cps = 15 } = audioRef?.current?.() || {};
+      if (audible) {
+        heard = true;
+        spoken += (dt * cps) / 1000;
+      } else if (heard && !speakingRef.current) {
+        spoken += (dt * FLUSH_CPS) / 1000;
+      }
+      let n = 0;
+      while (n < starts.length && starts[n] < spoken) n++;
+      setShown((s) => (s === n ? s : n));
+      if (n < words.length) raf = win.requestAnimationFrame(tick);
+    };
+    raf = win.requestAnimationFrame(tick);
+    return () => win.cancelAnimationFrame(raf);
+  }, [text, words, starts, audioRef]);
 
   useEffect(() => {
     if (!words.length || shown < words.length || speaking) return;
-    const w = win();
-    const id = w.setTimeout(() => setCleared(true), HOLD_MS);
-    return () => w.clearTimeout(id);
+    const win = ref.current?.ownerDocument?.defaultView || window;
+    const id = win.setTimeout(() => setCleared(true), HOLD_MS);
+    return () => win.clearTimeout(id);
   }, [shown, words.length, speaking]);
 
   const groupStart = Math.floor(Math.max(0, shown - 1) / GROUP) * GROUP;

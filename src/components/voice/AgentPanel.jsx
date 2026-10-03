@@ -16,7 +16,7 @@
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { ConversationProvider, useConversation } from "@elevenlabs/react";
-import { Phone, PictureInPicture2, Send } from "lucide-react";
+import { MonitorUp, Phone, PictureInPicture2, Send } from "lucide-react";
 import { toast } from "sonner";
 import { api, noEmDash } from "@/lib/utils";
 import { usePipWindow } from "@/lib/usePipWindow";
@@ -55,10 +55,12 @@ function Transcript({ turns }) {
 // Small and square-ish: Chrome draws it as a normal window, so keep it compact.
 const PIP_SIZE = { width: 240, height: 200 };
 
-function RealPanel({ sessionId, getAt, clientTools, controlRef, onUserTurn, beforeStart, onEnd, showTranscript = true }) {
+function RealPanel({ sessionId, getAt, clientTools, controlRef, onUserTurn, beforeStart, onEnd, showTranscript = false }) {
   const [micMuted, setMicMuted] = useState(false);
   const [starting, setStarting] = useState(false);
+  const [needsShare, setNeedsShare] = useState(false);
   const [turns, setTurns] = useState([]);
+  const cpsRef = useRef(15); // her speech rate in characters per second
   const conversation = useConversation({
     micMuted,
     onMessage: ({ message, role }) => {
@@ -66,6 +68,12 @@ function RealPanel({ sessionId, getAt, clientTools, controlRef, onUserTurn, befo
       setTurns((t) => [...t, { role: r, text: message }]);
       logTurn(sessionId, r, message, getAt());
       if (r === "user") onUserTurn?.(message);
+    },
+    // Timing of the characters in each audio chunk: gives her real speech rate.
+    onAudioAlignment: ({ chars, char_start_times_ms: starts, char_durations_ms: durs } = {}) => {
+      const n = chars?.length;
+      const ms = n ? starts[n - 1] + (durs?.[n - 1] || 0) : 0;
+      if (ms > 300) cpsRef.current = cpsRef.current * 0.6 + ((n / ms) * 1000) * 0.4;
     },
     onError: (m) => toast.error(m || "Voice session error"),
   });
@@ -81,6 +89,12 @@ function RealPanel({ sessionId, getAt, clientTools, controlRef, onUserTurn, befo
     if (conversation.isSpeaking) return { mode: "speaking", freq: conversation.getOutputByteFrequencyData() };
     return { mode: "listening", freq: micMuted ? null : conversation.getInputByteFrequencyData() };
   };
+  // Whether her voice is audible right now, for the subtitle clock.
+  const audioRef = useRef(null);
+  audioRef.current = () => ({
+    audible: conversation.status === "connected" && conversation.isSpeaking && conversation.getOutputVolume() > 0.02,
+    cps: cpsRef.current,
+  });
 
   useEffect(() => {
     controlRef.current = {
@@ -108,6 +122,7 @@ function RealPanel({ sessionId, getAt, clientTools, controlRef, onUserTurn, befo
   // Runs inside the click: the screen share picker and the floating window
   // both need the user gesture, so both are requested before any await.
   const start = () => {
+    setNeedsShare(false);
     const ready = beforeStart ? beforeStart() : true;
     pip.open(PIP_SIZE);
     connect(ready);
@@ -117,7 +132,9 @@ function RealPanel({ sessionId, getAt, clientTools, controlRef, onUserTurn, befo
     setStarting(true);
     try {
       if (!(await ready)) {
+        // No screen picked: ask again instead of failing.
         pip.close();
+        setNeedsShare(true);
         return;
       }
       const pre = await navigator.mediaDevices.getUserMedia({ audio: true });
@@ -144,6 +161,7 @@ function RealPanel({ sessionId, getAt, clientTools, controlRef, onUserTurn, befo
   const hud = (floating) => (
     <VoiceHud
       sampleRef={sampleRef}
+      audioRef={audioRef}
       status={conversation.status}
       speaking={conversation.isSpeaking}
       caption={lastAgentLine}
@@ -169,12 +187,21 @@ function RealPanel({ sessionId, getAt, clientTools, controlRef, onUserTurn, befo
       ) : (
         <>
           {showTranscript && <Transcript turns={turns} />}
-          <div className="mt-4 flex items-center gap-2">
-            <button type="button" onClick={start} className="btn btn-primary">
-              <Phone className="mr-2 h-4 w-4" /> Start
-            </button>
-            <span className="ml-auto text-xs text-muted-foreground">Not connected</span>
-          </div>
+          {needsShare ? (
+            <div className="mt-4 flex flex-col items-center gap-3 py-2 text-center">
+              <p className="text-sm text-muted-foreground">Which screen should she watch? Pick the tab or window you will work in.</p>
+              <button type="button" onClick={start} className="btn btn-primary">
+                <MonitorUp className="mr-2 h-4 w-4" /> Choose screen
+              </button>
+            </div>
+          ) : (
+            <div className="mt-4 flex items-center gap-2">
+              <button type="button" onClick={start} className="btn btn-primary">
+                <Phone className="mr-2 h-4 w-4" /> Start
+              </button>
+              <span className="ml-auto text-xs text-muted-foreground">Not connected</span>
+            </div>
+          )}
         </>
       )}
       {/* Surface SDK connection errors instead of failing silently. */}

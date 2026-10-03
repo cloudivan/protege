@@ -46,7 +46,8 @@ export default function ScreenShare({ sessionId, getAt, onEvents, onSharingChang
       onSharingChange?.(true);
       return true;
     } catch (e) {
-      toast.error(e.name === "NotAllowedError" ? "Screen share is needed to start" : e.message || "Screen share cancelled");
+      // Cancelling the picker is not an error: the caller asks again.
+      if (e.name !== "NotAllowedError") toast.error(e.message || "Screen share failed");
       return false;
     }
   };

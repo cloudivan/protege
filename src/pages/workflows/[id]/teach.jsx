@@ -221,7 +221,6 @@ export default function TeachPage() {
                 onUserTurn={markActivity}
                 beforeStart={() => shareRef.current?.start() ?? false}
                 onEnd={() => shareRef.current?.stop()}
-                showTranscript={false}
               />
             ) : (
               <div className="card flex justify-center p-5"><Loader /></div>
