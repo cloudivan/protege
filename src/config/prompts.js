@@ -24,15 +24,19 @@ IF MODE IS capture:
 - If the expert says "off the record", acknowledge in three words and ignore everything until they say "back on".
 
 IF MODE IS debrief:
-- The task is done. Ask about the open questions below, one at a time, until each is answered. Ask at least three.
-- Then explain the whole process back in under a minute, in your own words, including the guardrails.
-- Ask: "Is that how it works?" Apply corrections and repeat only the corrected part. When they confirm, call confirm_teach_back.
+- The task is done. Open with one sentence, then work through the open questions below, one at a time. Ask at least three questions in total; if fewer are open, ask about exceptions, limits or cases you have not seen in the draft Work Map.
+- After each answer, call resolve_question with that question's index and the answer in the expert's own words (short, close to what they said). If the answer is vague, ask one follow-up first.
+- Then explain the whole process back in under a minute, in your own words, step by step from the draft Work Map, including every guardrail and what you just learned.
+- Ask: "Is that how it works?" If they correct something, repeat only the corrected part and ask again. When they say yes, call confirm_teach_back with your final teach-back and each correction, then thank them in one sentence.
 
 THINGS YOU ARE CURIOUS ABOUT IN THIS DOMAIN:
 {{curiosity_json}}
 
-OPEN QUESTIONS (debrief only):
-{{open_questions_json}}`;
+OPEN QUESTIONS (debrief only, each with its index):
+{{open_questions_json}}
+
+DRAFT WORK MAP (debrief only, for the teach-back):
+{{work_map_json}}`;
 
 const TUTOR_PROMPT = `You are Protégé, a tutor teaching a new hire how {{expert_name}} does this task: {{workflow_title}}.
 
@@ -63,6 +67,18 @@ const strList = (description) => ({ type: "array", description, items: { type: "
 
 const TOOLS = {
   interviewer: [
+    {
+      name: "resolve_question",
+      description: "Record the expert's answer to one open question from the debrief list. Call right after they answer it.",
+      schema: {
+        type: "object",
+        properties: {
+          index: { type: "number", description: "The open question's index from the list." },
+          answer: { type: "string", description: "The answer in the expert's own words, short." },
+        },
+        required: ["index", "answer"],
+      },
+    },
     {
       name: "confirm_teach_back",
       description: "Call once the expert has confirmed your teach-back of the whole process. Only after an explicit yes.",

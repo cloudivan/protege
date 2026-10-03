@@ -53,8 +53,25 @@ const workMapSchema = new mongoose.Schema(
     version: { type: Number, default: 1 },
     steps: [stepSchema],
     // Gaps the builder found; the debrief asks about these.
-    openQuestions: [{ text: String, aboutStepIndex: Number, resolved: Boolean, _id: false }],
-    teachBack: { text: String, confirmed: Boolean, corrections: [String] },
+    // Resolved in the debrief via the interviewer's resolve_question tool; the
+    // answer and where it was said carry into the next build.
+    openQuestions: [
+      {
+        text: String,
+        aboutStepIndex: Number,
+        resolved: Boolean,
+        answer: String,
+        sessionId: { type: mongoose.Schema.Types.ObjectId, ref: "Session" },
+        at: Number,
+        _id: false,
+      },
+    ],
+    teachBack: { text: String, confirmed: Boolean, corrections: [String], sessionId: mongoose.Schema.Types.ObjectId, at: Number },
+    // What the citation check removed on the last build (see workMapBuilder).
+    verification: {
+      checkedAt: Date,
+      removed: [{ stepIndex: Number, what: String, why: String, _id: false }],
+    },
     confirmedAt: { type: Date },
   },
   { timestamps: true },

@@ -192,6 +192,36 @@ export const completeWithTools = async ({ system, history, tools, maxTokens = 60
 };
 
 // ---------------------------------------------------------------------------
+// completeJson: text in, JSON object matching `schema` out (structured
+// outputs on every provider, so no fishing JSON out of prose).
+// ---------------------------------------------------------------------------
+export const completeJson = async ({ system, text, schema, tier = "smart" }) => {
+	if (isCompat()) {
+		const response = await compat().chat.completions.create({
+			model: model(tier),
+			...noThinking(tier),
+			max_tokens: 16000,
+			response_format: { type: "json_schema", json_schema: { name: "result", schema } },
+			messages: [
+				{ role: "system", content: system },
+				{ role: "user", content: text },
+			],
+		});
+		return JSON.parse(response.choices[0]?.message?.content || "{}");
+	}
+
+	const { type, schema: outputSchema } = jsonSchemaOutputFormat(schema);
+	const response = await anthropic().beta.messages.create({
+		...claudeParams(tier),
+		output_config: { effort: EFFORT[tier] || "low", format: { type, schema: outputSchema } },
+		system,
+		messages: [{ role: "user", content: text }],
+	});
+	if (response.stop_reason === "refusal") throw new Error("The model declined this request");
+	return JSON.parse(response.content.find((b) => b.type === "text")?.text || "{}");
+};
+
+// ---------------------------------------------------------------------------
 // extractStructured: vision extraction of a JSON object matching `schema` from
 // an image or PDF. OpenAI path uses json_schema response format; PDFs fall
 // back to Anthropic (better native PDF support) when a key is available.
@@ -249,4 +279,4 @@ export const extractStructured = async ({ prompt, schema, fileBase64, mediaType 
 	}
 };
 
-export default { getProvider, complete, completeWithTools, extractStructured };
+export default { getProvider, complete, completeWithTools, completeJson, extractStructured };
