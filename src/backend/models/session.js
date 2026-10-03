@@ -37,6 +37,11 @@ const questionSchema = new mongoose.Schema(
     kind: { type: String, enum: ["why", "guardrail", "limit", "exception", "stop_and_ask", "other"] },
     aboutEventAt: { type: Number }, // which screen event triggered it
     answerTurnIndex: { type: Number }, // index into transcript
+    // Chosen by the question planner (services/questionPlanner.js) at a pause;
+    // askedTurnIndex is set once the agent actually says it.
+    planned: { type: Boolean, default: false },
+    askedTurnIndex: { type: Number },
+    rationale: { type: String }, // why the planner picked it (shown in the UI)
   },
   { _id: false },
 );
