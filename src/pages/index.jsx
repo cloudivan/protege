@@ -45,23 +45,23 @@ export default function Home() {
           </div>
           <div className="flex items-center gap-3">
             <Link
-              href="/sandbox/erp"
-              className="text-xs font-mono px-3.5 py-1.5 rounded border border-border hover:bg-muted transition-colors inline-flex items-center gap-2"
+              href="/workflows/new"
+              className="text-xs font-medium px-4 py-1.5 rounded bg-primary text-white hover:bg-primary/90 transition-colors shadow-sm inline-flex items-center gap-2"
             >
-              <FileText className="h-3.5 w-3.5 text-muted-foreground" /> Interactive Sandbox
+              <Workflow className="h-3.5 w-3.5" /> Start Workflow
             </Link>
             <Link
               href="/workflows/demo/teach"
-              className="text-xs font-medium px-4 py-1.5 rounded bg-primary text-white hover:bg-primary/90 transition-colors shadow-sm inline-flex items-center gap-2"
+              className="text-xs font-mono px-3.5 py-1.5 rounded border border-border hover:bg-muted transition-colors inline-flex items-center gap-2"
             >
-              Interactive Demo <ArrowRight className="h-3.5 w-3.5" />
+              <Play className="h-3 w-3 fill-current" /> Interactive Demo
             </Link>
           </div>
         </div>
       </header>
 
       {/* Hero Section */}
-      <main className="max-w-7xl mx-auto px-6 pt-24 pb-32 space-y-32">
+      <main className="max-w-7xl mx-auto px-6 pt-20 pb-32 space-y-32">
         <section className="max-w-4xl space-y-8">
           <div className="inline-flex items-center gap-2 px-3 py-1 rounded border border-border bg-card text-xs font-mono text-muted-foreground">
             <span className="w-2 h-2 rounded-full bg-primary" />
@@ -78,16 +78,22 @@ export default function Home() {
 
           <div className="flex flex-wrap items-center gap-4 pt-2">
             <Link
-              href="/workflows/demo/teach"
-              className="inline-flex items-center gap-2 px-6 py-3 rounded bg-primary text-white font-medium text-sm hover:bg-primary/90 transition-colors shadow-sm"
+              href="/workflows/new"
+              className="inline-flex items-center gap-2.5 px-6 py-3.5 rounded bg-primary text-white font-medium text-sm hover:bg-primary/90 transition-colors shadow"
             >
-              <Play className="h-4 w-4 fill-current" /> Experience Live Coaching Session
+              <Workflow className="h-4 w-4" /> Start Capturing a Workflow <ArrowRight className="h-4 w-4" />
             </Link>
             <Link
-              href="/sandbox/erp"
-              className="inline-flex items-center gap-2 px-6 py-3 rounded border border-border bg-card text-foreground font-medium text-sm hover:bg-muted transition-colors"
+              href="/workflows"
+              className="inline-flex items-center gap-2 px-5 py-3.5 rounded border border-border bg-card text-foreground font-medium text-sm hover:bg-muted transition-colors"
             >
-              Open Sandbox Environment <ArrowRight className="h-4 w-4 text-muted-foreground" />
+              All Workflows
+            </Link>
+            <Link
+              href="/workflows/demo/teach"
+              className="inline-flex items-center gap-2 px-4 py-3.5 text-xs font-mono text-muted-foreground hover:text-foreground transition-colors"
+            >
+              <Play className="h-3 w-3 fill-current" /> Run Demo Sandbox
             </Link>
           </div>
         </section>
