@@ -55,18 +55,9 @@ export default function TutorPlayback() {
       aria-label="The tutor coaching a new hire"
       className="flex flex-col gap-5 rounded-3xl bg-white p-7 shadow-[0_1px_2px_rgba(15,23,42,0.06),0_24px_48px_-16px_rgba(15,23,42,0.18)]"
     >
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <div className="flex flex-col">
-          <strong className="text-[17px] font-semibold">Protégé Voice Tutor</strong>
-          <span className="text-sm text-[#475569]">Coaching in Sabine&apos;s words</span>
-        </div>
-        <span className="inline-flex items-center gap-2 font-mono text-xs text-[#475569]">
-          <span className="relative flex h-2 w-2">
-            <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-primary-400 opacity-60" />
-            <span className="relative inline-flex h-2 w-2 rounded-full bg-primary-400" />
-          </span>
-          Live
-        </span>
+      <div className="flex flex-col">
+        <strong className="text-[17px] font-semibold">Protégé Voice Tutor</strong>
+        <span className="text-sm text-[#475569]">Coaching in Sabine&apos;s words</span>
       </div>
 
       <div aria-hidden="true" className="flex h-16 items-center justify-center gap-2">
