@@ -11,6 +11,7 @@ import { useLiveSession } from "@/lib/useLiveSession";
 import { Logo } from "@/components/Logo";
 import WorkMapTimeline from "@/components/map/WorkMapTimeline";
 import AgentPanel from "@/components/voice/AgentPanel";
+import { useDebriefTools } from "@/lib/useDebriefTools";
 
 export default function DebriefPage() {
   const { query, push } = useRouter();
@@ -32,6 +33,19 @@ export default function DebriefPage() {
 
   const workflow = data?.workflow;
   const workMap = data?.workMap;
+
+  // The interviewer's debrief tools: save answers and the teach-back, then
+  // build the final map. Reload after each so the map and questions update.
+  const clientTools = useDebriefTools({
+    sessionId: session?._id,
+    workflowId: workflow?._id,
+    getAt,
+    onChange: (e) => {
+      if (e.type === "map_finalized") toast.success("Work Map confirmed and published");
+      if (e.type === "map_failed") toast.error(e.error);
+      loadData();
+    },
+  });
 
   const buildMap = async () => {
     setGenerating(true);
@@ -104,6 +118,7 @@ export default function DebriefPage() {
         <section className="lg:col-span-5 space-y-6">
           {session ? (
             <AgentPanel
+              clientTools={clientTools}
               sessionId={session._id}
               getAt={getAt}
               controlRef={controlRef}

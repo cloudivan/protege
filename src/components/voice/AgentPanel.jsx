@@ -181,6 +181,15 @@ function MockPanel({ sessionId, getAt, controlRef, onUserTurn, clientTools = {} 
     api(`/api/sessions/${sessionId}`, { method: "PATCH", body: { status: "live" } });
   };
 
+  // Like the real agents' first message: the tutor greets and the debrief
+  // interviewer opens. Capture stays silent (no opening_line) until PAUSE.
+  const opened = useRef(false);
+  useEffect(() => {
+    if (!cfg || opened.current) return;
+    opened.current = true;
+    if (cfg.role === "tutor" || cfg.dynamicVariables?.opening_line) agentTurn();
+  }, [cfg]); // eslint-disable-line react-hooks/exhaustive-deps
+
   const send = (e) => {
     e.preventDefault();
     if (!draft.trim()) return;

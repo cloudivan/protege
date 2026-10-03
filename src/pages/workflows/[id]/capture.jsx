@@ -23,6 +23,7 @@ export default function CapturePage() {
   const controlRef = useRef(null);
   const [events, setEvents] = useState([]);
   const [sharing, setSharing] = useState(false);
+  const [finishing, setFinishing] = useState(false);
 
   useEffect(() => {
     if (workflowId) {
@@ -51,12 +52,18 @@ export default function CapturePage() {
     [markActivity],
   );
 
+  // The debrief needs the draft Work Map: its open questions are what the
+  // interviewer asks about (POST /api/workflows/[id]/map, see docs/API.md).
   const proceedToDebrief = async () => {
+    setFinishing(true);
     try {
       controlRef.current?.end();
+      await api(`/api/workflows/${workflowId}/map`, { method: "POST", body: {} });
       push(`/workflows/${workflowId}/debrief`);
     } catch (e) {
       toast.error(e.message);
+    } finally {
+      setFinishing(false);
     }
   };
 
@@ -83,9 +90,10 @@ export default function CapturePage() {
           <button
             type="button"
             onClick={proceedToDebrief}
-            className="px-3.5 py-1.5 rounded bg-primary text-white font-medium hover:bg-primary/90 transition shadow-sm inline-flex items-center gap-1.5"
+            disabled={finishing}
+            className="px-3.5 py-1.5 rounded bg-primary text-white font-medium hover:bg-primary/90 transition shadow-sm inline-flex items-center gap-1.5 disabled:opacity-60"
           >
-            Finish &amp; Debrief <ArrowRight className="h-3.5 w-3.5" />
+            {finishing ? "Building Work Map…" : <>Finish &amp; Debrief <ArrowRight className="h-3.5 w-3.5" /></>}
           </button>
         </div>
       </header>
