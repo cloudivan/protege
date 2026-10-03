@@ -54,4 +54,69 @@ RULES:
 - Praise a correct prediction in a few words, without fuss.
 - On LESSON DONE, give a two-sentence wrap-up, call finish_lesson with what they mastered and what to practice next, then end_call.`;
 
-module.exports = { INTERVIEWER_PROMPT, TUTOR_PROMPT };
+// Client tools, one source for both voice backends: createAgents.js turns them
+// into ElevenLabs client tools, the mock route hands them to the engine LLM.
+// The browser implements them (clientTools in the capture / debrief / teach
+// pages). Shape: { name, description, schema: JSON Schema object }.
+// ElevenLabs rejects array items without their own description.
+const strList = (description) => ({ type: "array", description, items: { type: "string", description } });
+
+const TOOLS = {
+  interviewer: [
+    {
+      name: "confirm_teach_back",
+      description: "Call once the expert has confirmed your teach-back of the whole process. Only after an explicit yes.",
+      schema: {
+        type: "object",
+        properties: {
+          summary: { type: "string", description: "Your final teach-back, in your own words, including the guardrails." },
+          corrections: strList("Each correction the expert made during the teach-back."),
+        },
+        required: ["summary"],
+      },
+    },
+  ],
+  tutor: [
+    {
+      name: "replay_moment",
+      description: "Show the new hire the expert's own screen moment for a Work Map step, with the expert's reason.",
+      schema: {
+        type: "object",
+        properties: { step_index: { type: "number", description: "The Work Map step index to replay." } },
+        required: ["step_index"],
+      },
+    },
+    {
+      name: "log_intervention",
+      description: "Record every time you stepped in on a guardrail or a wrong decision.",
+      schema: {
+        type: "object",
+        properties: {
+          step_index: { type: "number", description: "The Work Map step index." },
+          guardrail: { type: "string", description: "The guardrail or decision at stake, in the expert's words." },
+          learner_action: { type: "string", description: "What the new hire was about to do." },
+          outcome: {
+            type: "string",
+            enum: ["caught", "corrected", "missed"],
+            description: "caught (stopped before saving), corrected (they fixed it) or missed.",
+          },
+        },
+        required: ["step_index", "guardrail", "outcome"],
+      },
+    },
+    {
+      name: "finish_lesson",
+      description: "End the lesson: what the new hire mastered and what to practice next.",
+      schema: {
+        type: "object",
+        properties: {
+          mastered: strList("Steps or decisions they handled correctly on their own."),
+          practice: strList("Steps or guardrails to practice next."),
+        },
+        required: ["mastered", "practice"],
+      },
+    },
+  ],
+};
+
+module.exports = { INTERVIEWER_PROMPT, TUTOR_PROMPT, TOOLS };

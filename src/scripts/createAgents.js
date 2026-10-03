@@ -7,7 +7,7 @@
 
 const fs = require("fs");
 const path = require("path");
-const { INTERVIEWER_PROMPT, TUTOR_PROMPT } = require("../config/prompts");
+const { INTERVIEWER_PROMPT, TUTOR_PROMPT, TOOLS } = require("../config/prompts");
 
 function loadEnv() {
   const file = path.join(__dirname, "..", "..", ".env.local");
@@ -20,23 +20,20 @@ function loadEnv() {
   }
 }
 
-const str = (description, extra) => ({ type: "string", description, ...extra });
-const num = (description) => ({ type: "number", description });
-const strList = (description) => ({ type: "array", description, items: { type: "string", description } });
+// Shared tool definition (src/config/prompts.js TOOLS) -> ElevenLabs client tool.
+const clientTool = ({ name, description, schema }) => ({
+  type: "client",
+  name,
+  description,
+  expects_response: true,
+  response_timeout_secs: 20,
+  parameters: schema,
+});
 
-function clientTool(name, description, properties, required) {
-  const tool = {
-    type: "client",
-    name,
-    description,
-    expects_response: true,
-    response_timeout_secs: 20,
-  };
-  if (properties) {
-    tool.parameters = { type: "object", properties, required: required || [] };
-  }
-  return tool;
-}
+const SYSTEM_TOOLS = [
+  { type: "system", name: "end_call" },
+  { type: "system", name: "language_detection" },
+];
 
 const LLM = "claude-sonnet-4-6";
 
@@ -68,19 +65,7 @@ const interviewerAgent = {
       prompt: {
         prompt: INTERVIEWER_PROMPT,
         llm: LLM,
-        tools: [
-          clientTool(
-            "confirm_teach_back",
-            "Call once the expert has confirmed your teach-back of the whole process. Only after an explicit yes.",
-            {
-              summary: str("Your final teach-back, in your own words, including the guardrails."),
-              corrections: strList("Each correction the expert made during the teach-back."),
-            },
-            ["summary"],
-          ),
-          { type: "system", name: "end_call" },
-          { type: "system", name: "language_detection" },
-        ],
+        tools: [...TOOLS.interviewer.map(clientTool), ...SYSTEM_TOOLS],
       },
     },
   },
@@ -100,38 +85,7 @@ const tutorAgent = {
       prompt: {
         prompt: TUTOR_PROMPT,
         llm: LLM,
-        tools: [
-          clientTool(
-            "replay_moment",
-            "Show the new hire the expert's own screen moment for a Work Map step, with the expert's reason.",
-            { step_index: num("The Work Map step index to replay.") },
-            ["step_index"],
-          ),
-          clientTool(
-            "log_intervention",
-            "Record every time you stepped in on a guardrail or a wrong decision.",
-            {
-              step_index: num("The Work Map step index."),
-              guardrail: str("The guardrail or decision at stake, in the expert's words."),
-              learner_action: str("What the new hire was about to do."),
-              outcome: str("caught (stopped before saving), corrected (they fixed it) or missed.", {
-                enum: ["caught", "corrected", "missed"],
-              }),
-            },
-            ["step_index", "guardrail", "outcome"],
-          ),
-          clientTool(
-            "finish_lesson",
-            "End the lesson: what the new hire mastered and what to practice next.",
-            {
-              mastered: strList("Steps or decisions they handled correctly on their own."),
-              practice: strList("Steps or guardrails to practice next."),
-            },
-            ["mastered", "practice"],
-          ),
-          { type: "system", name: "end_call" },
-          { type: "system", name: "language_detection" },
-        ],
+        tools: [...TOOLS.tutor.map(clientTool), ...SYSTEM_TOOLS],
       },
     },
   },

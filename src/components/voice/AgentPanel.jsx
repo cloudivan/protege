@@ -114,7 +114,7 @@ function RealPanel({ sessionId, getAt, clientTools, controlRef, onUserTurn }) {
 }
 
 // ---------------------------------------------------------------- mock voice
-function MockPanel({ sessionId, getAt, controlRef, onUserTurn }) {
+function MockPanel({ sessionId, getAt, controlRef, onUserTurn, clientTools = {} }) {
   const [cfg, setCfg] = useState(null);
   const [turns, setTurns] = useState([]);
   const [draft, setDraft] = useState("");
@@ -126,10 +126,15 @@ function MockPanel({ sessionId, getAt, controlRef, onUserTurn }) {
     if (!cfg || busy.current) return;
     busy.current = true;
     try {
-      const { text } = await api("/api/agent/mock-turn", {
+      const { text, toolCalls = [] } = await api("/api/agent/mock-turn", {
         method: "POST",
         body: { role: cfg.role, dynamicVariables: cfg.dynamicVariables, history: history.current },
       });
+      // Same client tools the real ElevenLabs session would call.
+      for (const { name, input } of toolCalls) {
+        setTurns((t) => [...t, { role: "context", text: `[tool] ${name}` }]);
+        await Promise.resolve(clientTools[name]?.(input || {})).catch((e) => console.warn(`tool ${name} failed`, e));
+      }
       if (text) {
         history.current.push({ role: "assistant", text });
         setTurns((t) => [...t, { role: "agent", text }]);

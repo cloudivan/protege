@@ -11,8 +11,8 @@ import OpenAI from "openai";
 
 const MODELS = {
 	gemini: {
-		fast: process.env.GEMINI_MODEL_FAST || "gemini-3.8-flash",
-		smart: process.env.GEMINI_MODEL_SMART || "gemini-3.8-flash",
+		fast: process.env.GEMINI_MODEL_FAST || "gemini-flash-lite-latest",
+		smart: process.env.GEMINI_MODEL_SMART || "gemini-flash-lite-latest",
 	},
 	openai: { fast: "gpt-4.1-mini", smart: "gpt-4.1" },
 	anthropic: { fast: "claude-sonnet-5", smart: "claude-opus-4-8" },
@@ -43,11 +43,13 @@ const compat = () => (getProvider() === "gemini" ? gemini() : openai());
 
 const model = (tier) => MODELS[getProvider()][tier] || MODELS[getProvider()].fast;
 
-// Gemini Flash thinks by default, and thinking tokens count against
-// max_tokens: a 300-token spoken turn could come back empty. Fast tier is
-// dialogue, so switch it off there (same choice as the Anthropic path).
-const noThinking = (tier) =>
-	getProvider() === "gemini" && tier === "fast" ? { reasoning_effort: "none" } : {};
+// Thinking tokens count against max_tokens: a 300-token spoken turn could come
+// back empty. Fast tier is dialogue, so switch thinking off there (same choice
+// as the Anthropic path). Flash-Lite rejects "none" and takes "minimal".
+const noThinking = (tier) => {
+	if (getProvider() !== "gemini" || tier !== "fast") return {};
+	return { reasoning_effort: model(tier).includes("lite") ? "minimal" : "none" };
+};
 
 // ---------------------------------------------------------------------------
 // complete: plain chat. messages = [{ role: "user"|"assistant", text }]
