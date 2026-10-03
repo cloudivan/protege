@@ -12,8 +12,8 @@ import OpenAI from "openai";
 
 const MODELS = {
 	anthropic: {
-		fast: process.env.ANTHROPIC_MODEL_FAST || "claude-opus-5-5",
-		smart: process.env.ANTHROPIC_MODEL_SMART || "claude-opus-5-5",
+		fast: process.env.ANTHROPIC_MODEL_FAST || "claude-sonnet-5-5",
+		smart: process.env.ANTHROPIC_MODEL_SMART || "claude-sonnet-5-5",
 	},
 	gemini: {
 		fast: process.env.GEMINI_MODEL_FAST || "gemini-flash-lite-latest",
@@ -22,8 +22,8 @@ const MODELS = {
 	openai: { fast: "gpt-4.1-mini", smart: "gpt-4.1" },
 };
 
-// Claude Opus 5.5 always thinks ({type: "disabled"} is a 400); effort is the
-// speed/depth control. Fast tier is spoken dialogue, so keep it low.
+// Claude Sonnet 5.5 rejects {type: "disabled"} thinking; thinking stays on
+// and effort is the speed/depth control. Fast tier is dialogue: keep it low.
 const EFFORT = { fast: "low", smart: "medium" };
 // Thinking tokens count against max_tokens; reply length is set by the prompts.
 const ANTHROPIC_MAX_TOKENS = 16000;
@@ -41,8 +41,15 @@ const claudeParams = (tier) => ({
 let anthropicClient = null;
 let openaiClient = null;
 let geminiClient = null;
+// A key that is not scoped to a workspace (e.g. sk-ant-usr...) must name one
+// on every request; ANTHROPIC_WORKSPACE_ID supplies it.
 const anthropic = () =>
-	(anthropicClient ||= new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY }));
+	(anthropicClient ||= new Anthropic({
+		apiKey: process.env.ANTHROPIC_API_KEY,
+		...(process.env.ANTHROPIC_WORKSPACE_ID && {
+			defaultHeaders: { "anthropic-workspace-id": process.env.ANTHROPIC_WORKSPACE_ID },
+		}),
+	}));
 const openai = () => (openaiClient ||= new OpenAI({ apiKey: process.env.OPENAI_API_KEY }));
 const gemini = () =>
 	(geminiClient ||= new OpenAI({
@@ -216,7 +223,7 @@ export const extractStructured = async ({ prompt, schema, fileBase64, mediaType 
 	}
 
 	// Structured outputs, not forced tool use (tool_choice "tool" is a 400 on
-	// Claude Opus 5.5). Always the Anthropic model here, even when a PDF is
+	// Claude Sonnet 5.5). Always the Anthropic model here, even when a PDF is
 	// routed to Claude while another provider is the default.
 	const source = { type: "base64", media_type: mediaType, data };
 	const { type, schema: outputSchema } = jsonSchemaOutputFormat(schema);
