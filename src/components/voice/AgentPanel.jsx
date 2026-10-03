@@ -16,7 +16,7 @@
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { ConversationProvider, useConversation } from "@elevenlabs/react";
-import { Mic, MicOff, Phone, PhoneOff, PictureInPicture2, Send } from "lucide-react";
+import { Phone, PictureInPicture2, Send } from "lucide-react";
 import { toast } from "sonner";
 import { api, noEmDash } from "@/lib/utils";
 import { usePipWindow } from "@/lib/usePipWindow";
@@ -52,7 +52,10 @@ function Transcript({ turns }) {
 }
 
 // ---------------------------------------------------------------- real voice
-function RealPanel({ sessionId, getAt, clientTools, controlRef, onUserTurn, beforeStart, onEnd }) {
+// Small and square-ish: Chrome draws it as a normal window, so keep it compact.
+const PIP_SIZE = { width: 240, height: 200 };
+
+function RealPanel({ sessionId, getAt, clientTools, controlRef, onUserTurn, beforeStart, onEnd, showTranscript = true }) {
   const [micMuted, setMicMuted] = useState(false);
   const [starting, setStarting] = useState(false);
   const [turns, setTurns] = useState([]);
@@ -106,7 +109,7 @@ function RealPanel({ sessionId, getAt, clientTools, controlRef, onUserTurn, befo
   // both need the user gesture, so both are requested before any await.
   const start = () => {
     const ready = beforeStart ? beforeStart() : true;
-    pip.open();
+    pip.open(PIP_SIZE);
     connect(ready);
   };
 
@@ -153,36 +156,27 @@ function RealPanel({ sessionId, getAt, clientTools, controlRef, onUserTurn, befo
 
   return (
     <>
-      {live && <div className="mt-4 border border-border bg-background">{hud(false)}</div>}
-      {live && pip.pipWindow && createPortal(<div className="h-screen bg-card text-foreground">{hud(true)}</div>, pip.pipWindow.document.body)}
-      {connected && pip.supported && !pip.pipWindow && (
-        <button type="button" onClick={() => pip.open()} className="mt-2 flex w-full items-center justify-center gap-1.5 text-xs text-muted-foreground hover:text-foreground">
-          <PictureInPicture2 className="h-3.5 w-3.5" /> Pop out, keep her visible on any tab
-        </button>
+      {live ? (
+        <>
+          {hud(false)}
+          {pip.pipWindow && createPortal(<div className="h-screen bg-background text-foreground">{hud(true)}</div>, pip.pipWindow.document.body)}
+          {connected && pip.supported && !pip.pipWindow && (
+            <button type="button" onClick={() => pip.open(PIP_SIZE)} className="mx-auto flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground">
+              <PictureInPicture2 className="h-3.5 w-3.5" /> Pop out, keep her visible on any tab
+            </button>
+          )}
+        </>
+      ) : (
+        <>
+          {showTranscript && <Transcript turns={turns} />}
+          <div className="mt-4 flex items-center gap-2">
+            <button type="button" onClick={start} className="btn btn-primary">
+              <Phone className="mr-2 h-4 w-4" /> Start
+            </button>
+            <span className="ml-auto text-xs text-muted-foreground">Not connected</span>
+          </div>
+        </>
       )}
-      <Transcript turns={turns} />
-      <div className="mt-4 flex items-center gap-2">
-        {connected ? (
-          <>
-            <button type="button" onClick={() => setMicMuted((m) => !m)} className={`btn ${micMuted ? "btn-secondary" : "btn-primary"}`}>
-              {micMuted ? <MicOff className="mr-2 h-4 w-4" /> : <Mic className="mr-2 h-4 w-4" />}
-              {micMuted ? "Unmute" : "Mute"}
-            </button>
-            <button type="button" onClick={end} className="btn btn-secondary">
-              <PhoneOff className="mr-2 h-4 w-4" /> End
-            </button>
-          </>
-        ) : (
-          <button type="button" onClick={start} disabled={starting} className="btn btn-primary disabled:opacity-50">
-            <Phone className="mr-2 h-4 w-4" /> {starting ? "Connecting…" : "Start"}
-          </button>
-        )}
-        <span className="ml-auto text-xs text-muted-foreground">
-          {connected
-            ? conversation.isSpeaking ? "Speaking" : "Listening"
-            : conversation.status === "connecting" ? "Connecting…" : "Not connected"}
-        </span>
-      </div>
       {/* Surface SDK connection errors instead of failing silently. */}
       {conversation.status === "error" && (
         <p className="mt-2 text-xs text-error-600">Voice error: {conversation.message || "could not connect"}</p>
