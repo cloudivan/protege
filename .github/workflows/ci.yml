@@ -1,0 +1,38 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run build
+
+  # Pushes the ElevenLabs agent config (prompts + tools) after a green build on
+  # main. Updates the two existing agents in place; refuses to create.
+  # Enable by setting the repo variable AGENTS_SYNC_ENABLED=true and the secrets.
+  update-agents:
+    needs: build
+    if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request' && vars.AGENTS_SYNC_ENABLED == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      # createAgents.js has zero npm dependencies, so no install needed.
+      - run: node src/scripts/createAgents.js
+        env:
+          ELEVENLABS_API_KEY: ${{ secrets.ELEVENLABS_API_KEY }}
+          ELEVENLABS_INTERVIEWER_AGENT_ID: ${{ secrets.ELEVENLABS_INTERVIEWER_AGENT_ID }}
+          ELEVENLABS_TUTOR_AGENT_ID: ${{ secrets.ELEVENLABS_TUTOR_AGENT_ID }}

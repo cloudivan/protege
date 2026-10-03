@@ -1,0 +1,25 @@
+# Secrets
+.env
+.env.local
+.env*.local
+.env.production
+
+# Node / Next
+node_modules/
+.next/
+.next-build/
+out/
+npm-debug.log*
+*.tsbuildinfo
+next-env.d.ts
+
+# Session data (screen frames may contain personal data)
+public/frames/
+recordings/
+*.webm
+
+# OS / editors
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/

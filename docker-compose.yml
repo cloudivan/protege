@@ -1,0 +1,38 @@
+services:
+    web:
+        container_name: protege-app
+        build:
+            context: ./
+            dockerfile: Dockerfile
+        ports:
+            - "3002:3002"
+        logging:
+            driver: "json-file"
+            options:
+                max-size: "50m"
+                max-file: "5"
+        environment:
+            NODE_ENV: production
+            PORT: 3002
+        env_file:
+            - .env.production
+        restart: unless-stopped
+        volumes:
+            # Screen moments survive image rebuilds.
+            - frames:/usr/src/app/public/frames
+        healthcheck:
+            test:
+                [
+                    "CMD",
+                    "node",
+                    "-e",
+                    "fetch('http://localhost:3002/').then((r) => process.exit(r.ok ? 0 : 1)).catch(() => process.exit(1))",
+                ]
+            interval: 30s
+            timeout: 10s
+            retries: 5
+            start_period: 30s
+
+volumes:
+    frames:
+        driver: local

@@ -1,0 +1,31 @@
+name: Deploy to DigitalOcean
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    # Off until a server exists. Enable with repo variable DEPLOY_ENABLED=true
+    # plus secrets DO_HOST, DO_USERNAME, DO_PASSWORD.
+    if: vars.DEPLOY_ENABLED == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Deploy to DigitalOcean
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.DO_HOST }}
+          username: ${{ secrets.DO_USERNAME }}
+          password: ${{ secrets.DO_PASSWORD }}
+          command_timeout: 30m
+          # Fail on the FIRST failing command so a failed git pull can't
+          # silently redeploy a stale checkout.
+          script_stop: true
+          script: |
+            set -e
+            cd /root/protege
+            git pull origin main
+            docker compose up web --build -d --wait
+            docker image prune -f

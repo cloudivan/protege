@@ -1,0 +1,30 @@
+# Dependencies and build output (rebuilt inside the image)
+node_modules
+.next
+.next-build
+npm-debug.log
+
+# Git and CI
+.git
+.gitignore
+.github
+
+# Environment files (injected at runtime via env_file in docker-compose)
+.env
+.env.local
+.env*.local
+.env.production
+
+# Runtime-generated recordings (live in a docker volume, not the image)
+public/recordings
+
+# Docker files themselves
+Dockerfile
+docker-compose*.yml
+.dockerignore
+
+# Docs and local clutter
+*.md
+*.pdf
+.DS_Store
+.claude
