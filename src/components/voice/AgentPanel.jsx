@@ -14,10 +14,13 @@
 // them (e.g. sendContextualUpdate).
 
 import { useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { ConversationProvider, useConversation } from "@elevenlabs/react";
-import { Mic, MicOff, Phone, PhoneOff, Send } from "lucide-react";
+import { Mic, MicOff, Phone, PhoneOff, PictureInPicture2, Send } from "lucide-react";
 import { toast } from "sonner";
 import { api, noEmDash } from "@/lib/utils";
+import { usePipWindow } from "@/lib/usePipWindow";
+import VoiceHud from "@/components/voice/VoiceHud";
 
 const VOICE_MODE = process.env.NEXT_PUBLIC_VOICE_MODE === "real" ? "real" : "mock";
 
@@ -64,6 +67,17 @@ function RealPanel({ sessionId, getAt, clientTools, controlRef, onUserTurn, befo
     onError: (m) => toast.error(m || "Voice session error"),
   });
   const connected = conversation.status === "connected";
+  const pip = usePipWindow();
+  const lastAgentLine = [...turns].reverse().find((t) => t.role === "agent")?.text || "";
+
+  // Read live audio levels for the voice bars. A ref, so the animation loop
+  // always sees the current conversation without restarting.
+  const sampleRef = useRef(null);
+  sampleRef.current = () => {
+    if (conversation.status !== "connected") return { mode: "idle" };
+    if (conversation.isSpeaking) return { mode: "speaking", freq: conversation.getOutputByteFrequencyData() };
+    return { mode: "listening", freq: micMuted ? null : conversation.getInputByteFrequencyData() };
+  };
 
   useEffect(() => {
     controlRef.current = {
@@ -72,10 +86,37 @@ function RealPanel({ sessionId, getAt, clientTools, controlRef, onUserTurn, befo
     };
   }, [connected, conversation, controlRef]);
 
-  const start = async () => {
+  // Close the floating window once a call that was live has ended.
+  const wasConnected = useRef(false);
+  useEffect(() => {
+    if (connected) wasConnected.current = true;
+    else if (wasConnected.current && conversation.status !== "connecting") {
+      wasConnected.current = false;
+      pip.close();
+    }
+  }, [connected, conversation.status, pip.close]);
+
+  const end = () => {
+    conversation.endSession();
+    pip.close();
+    onEnd?.();
+  };
+
+  // Runs inside the click: the screen share picker and the floating window
+  // both need the user gesture, so both are requested before any await.
+  const start = () => {
+    const ready = beforeStart ? beforeStart() : true;
+    pip.open();
+    connect(ready);
+  };
+
+  const connect = async (ready) => {
     setStarting(true);
     try {
-      if (beforeStart && !(await beforeStart())) return;
+      if (!(await ready)) {
+        pip.close();
+        return;
+      }
       const pre = await navigator.mediaDevices.getUserMedia({ audio: true });
       pre.getTracks().forEach((t) => t.stop());
       const data = await api("/api/agent/session", { method: "POST", body: { sessionId } });
@@ -89,14 +130,36 @@ function RealPanel({ sessionId, getAt, clientTools, controlRef, onUserTurn, befo
         onDisconnect: () => api(`/api/sessions/${sessionId}`, { method: "PATCH", body: { status: "done" } }),
       });
     } catch (err) {
+      pip.close();
       toast.error(err.message || "Microphone unavailable");
     } finally {
       setStarting(false);
     }
   };
 
+  const live = connected || starting || conversation.status === "connecting";
+  const hud = (floating) => (
+    <VoiceHud
+      sampleRef={sampleRef}
+      status={conversation.status}
+      speaking={conversation.isSpeaking}
+      caption={lastAgentLine}
+      micMuted={micMuted}
+      onToggleMute={() => setMicMuted((m) => !m)}
+      onEnd={end}
+      floating={floating}
+    />
+  );
+
   return (
     <>
+      {live && <div className="mt-4 border border-border bg-background">{hud(false)}</div>}
+      {live && pip.pipWindow && createPortal(<div className="h-screen bg-card text-foreground">{hud(true)}</div>, pip.pipWindow.document.body)}
+      {connected && pip.supported && !pip.pipWindow && (
+        <button type="button" onClick={() => pip.open()} className="mt-2 flex w-full items-center justify-center gap-1.5 text-xs text-muted-foreground hover:text-foreground">
+          <PictureInPicture2 className="h-3.5 w-3.5" /> Pop out, keep her visible on any tab
+        </button>
+      )}
       <Transcript turns={turns} />
       <div className="mt-4 flex items-center gap-2">
         {connected ? (
@@ -105,7 +168,7 @@ function RealPanel({ sessionId, getAt, clientTools, controlRef, onUserTurn, befo
               {micMuted ? <MicOff className="mr-2 h-4 w-4" /> : <Mic className="mr-2 h-4 w-4" />}
               {micMuted ? "Unmute" : "Mute"}
             </button>
-            <button type="button" onClick={() => { conversation.endSession(); onEnd?.(); }} className="btn btn-secondary">
+            <button type="button" onClick={end} className="btn btn-secondary">
               <PhoneOff className="mr-2 h-4 w-4" /> End
             </button>
           </>
