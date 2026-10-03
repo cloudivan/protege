@@ -25,7 +25,7 @@ const screenEventSchema = new mongoose.Schema(
     type: { type: String, required: true },
     summary: { type: String, required: true }, // "cost center 4711 -> 0400 on invoice 4471"
     data: { type: mongoose.Schema.Types.Mixed },
-    frameKey: { type: String }, // stored frame for replay (public/frames/<sessionId>/<at>.jpg)
+    frameKey: { type: String }, // stored frame for replay: "api/frames/<frameId>" (models/frame.js)
   },
   { _id: false },
 );

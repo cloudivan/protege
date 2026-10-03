@@ -1,14 +1,13 @@
-import fs from "fs/promises";
-import path from "path";
 import dbConnect from "@/lib/dbConnect";
 import Session from "@/backend/models/session";
+import Frame from "@/backend/models/frame";
 import { describeFrame } from "@/backend/services/screenEvents";
 
 export const config = { api: { bodyParser: { sizeLimit: "4mb" } } };
 
 // POST { frameBase64, at } -> { activity, events }
 // Called by ScreenShare every NEXT_PUBLIC_FRAME_INTERVAL_MS. Frames are only
-// kept on disk when they produced an event (that is the replayable moment).
+// stored (in Mongo, see models/frame.js) when they produced an event (that is the replayable moment).
 export default async function handler(req, res) {
   if (req.method !== "POST") return res.status(405).json({ error: "Method not allowed" });
   try {
@@ -26,10 +25,12 @@ export default async function handler(req, res) {
       return res.status(200).json({ activity: result.activity, events: [] });
     }
 
-    const frameKey = `frames/${session._id}/${at}.jpg`;
-    const file = path.join(process.cwd(), "public", frameKey);
-    await fs.mkdir(path.dirname(file), { recursive: true });
-    await fs.writeFile(file, Buffer.from(frameBase64.replace(/^data:[^;]+;base64,/, ""), "base64"));
+    const frame = await Frame.create({
+      sessionId: session._id,
+      at,
+      data: Buffer.from(frameBase64.replace(/^data:[^;]+;base64,/, ""), "base64"),
+    });
+    const frameKey = `api/frames/${frame._id}`;
 
     const events = result.events.map((e) => ({ ...e, at, frameKey }));
     session.events.push(...events);
