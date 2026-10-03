@@ -26,7 +26,11 @@ function logTurn(sessionId, role, text, at) {
 
 function Transcript({ turns }) {
   const ref = useRef(null);
-  useEffect(() => ref.current?.scrollTo({ top: ref.current.scrollHeight }), [turns]);
+  // Braces matter: current Chrome's scrollTo() returns a Promise, and an
+  // effect that returns one crashes React on cleanup ("i is not a function").
+  useEffect(() => {
+    ref.current?.scrollTo({ top: ref.current.scrollHeight });
+  }, [turns]);
   if (!turns.length) return null;
   return (
     <div ref={ref} className="mt-4 max-h-80 space-y-2 overflow-y-auto border border-border bg-background p-3 text-sm scrollbar-subtle">
