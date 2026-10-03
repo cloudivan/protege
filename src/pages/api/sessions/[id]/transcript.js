@@ -4,7 +4,8 @@ import { redact } from "@/backend/services/redaction";
 
 // POST { role: "agent"|"user", text, at, question?: { kind, aboutEventAt } }
 // Agent turns that are questions are also logged in session.questions so we
-// can prove the "3 questions, 1 guardrail" requirement.
+// can prove the "3 questions, 1 guardrail" requirement. A question the planner
+// chose at a pause is marked asked (not duplicated) when the agent says it.
 export default async function handler(req, res) {
   if (req.method !== "POST") return res.status(405).json({ error: "Method not allowed" });
   try {
@@ -15,16 +16,19 @@ export default async function handler(req, res) {
 
     const offRecord = session.offRecordSpans.some((s) => s.to == null);
     session.transcript.push({ role, text: offRecord ? "[off the record]" : redact(text), at, offRecord });
+    const turnIndex = session.transcript.length - 1;
     if (role === "agent" && question && !offRecord) {
-      session.questions.push({ at, text, ...question });
+      const pending = [...session.questions].reverse().find((x) => x.planned && x.askedTurnIndex == null);
+      if (pending) pending.askedTurnIndex = turnIndex;
+      else session.questions.push({ at, text, ...question, askedTurnIndex: turnIndex });
     }
-    // Link the previous unanswered question to this user answer.
+    // Link the latest asked, unanswered question to this user answer.
     if (role === "user" && !offRecord) {
-      const q = [...session.questions].reverse().find((x) => x.answerTurnIndex == null);
-      if (q) q.answerTurnIndex = session.transcript.length - 1;
+      const q = [...session.questions].reverse().find((x) => x.askedTurnIndex != null && x.answerTurnIndex == null);
+      if (q) q.answerTurnIndex = turnIndex;
     }
     await session.save();
-    return res.status(200).json({ ok: true, turnIndex: session.transcript.length - 1 });
+    return res.status(200).json({ ok: true, turnIndex });
   } catch (error) {
     console.error("sessions/[id]/transcript error:", error);
     return res.status(500).json({ error: error.message });

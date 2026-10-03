@@ -9,6 +9,7 @@ import { toast } from "sonner";
 import { api } from "@/lib/utils";
 import { useLiveSession } from "@/lib/useLiveSession";
 import { usePauseDetector } from "@/lib/usePauseDetector";
+import { useQuestionPlanner } from "@/lib/useQuestionPlanner";
 import { Logo } from "@/components/Logo";
 import ScreenShare from "@/components/capture/ScreenShare";
 import EventFeed from "@/components/capture/EventFeed";
@@ -35,10 +36,10 @@ export default function CapturePage() {
   }, [workflowId]);
 
   const send = (text) => controlRef.current?.sendContext(text);
+  // At a pause the backend planner picks the one question worth asking (or none).
+  const { onPause } = useQuestionPlanner({ sessionId: session?._id, getAt, send });
   const { markActivity } = usePauseDetector({
-    onPause: () => {
-      send("PAUSE");
-    },
+    onPause,
     enabled: Boolean(session) && sharing,
   });
 
