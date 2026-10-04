@@ -228,7 +228,7 @@ export default function TeachPage() {
           <div>
             <span className="rounded bg-primary/10 px-2 py-0.5 font-mono text-xs uppercase tracking-widest text-primary">Teach · practice with {expertName}&apos;s Work Map</span>
             <h1 className="mt-2 font-serif text-2xl font-bold">{workflow.title}</h1>
-            {workflow.simulated && <p className="m-0 text-xs text-muted-foreground">Demo: the senior doctor and all patients are simulated.</p>}
+            {workflow.simulated && <p className="m-0 text-xs text-muted-foreground">Sample: the senior doctor and all patients are simulated.</p>}
           </div>
           <StageRail workflowId={workflow._id} current="teach" done={stagesDone(workflow, true)} />
         </div>

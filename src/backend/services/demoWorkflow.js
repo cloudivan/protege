@@ -107,16 +107,30 @@ const PLAYBACK_SCHEMA = {
   required: ["question", "wrongAnswer"],
 };
 
-export async function generateDemoWorkflow(topic) {
-  if (!topic?.trim()) throw Object.assign(new Error("topic is required"), { status: 400 });
-  const sim = await completeJson({ system: SIM_SYSTEM, text: `Topic: ${topic.trim()}`, schema: SIM_SCHEMA, tier: "smart" });
-
+export async function generateDemoWorkflow(topic, expertName) {
   await removeDemo();
-  const profile = await profileForUseCase({ title: sim.title, useCase: sim.useCase, expertName: sim.expertName });
+  return simulateWorkflow({ topic, expertName, ids: { workflow: DEMO_WORKFLOW_OID, workMap: DEMO_WORK_MAP_OID } });
+}
+
+// A simulated senior doctor's workflow on any clinical topic, through the
+// real pipeline (capture session -> buildWorkMap with its citation check ->
+// confirmed Work Map). Used for the demo and for sample workflows; marked
+// simulated. expertName is optional (the LLM invents a fictional one).
+export async function simulateWorkflow({ topic, expertName, ids = {} }) {
+  if (!topic?.trim()) throw Object.assign(new Error("topic is required"), { status: 400 });
+  const sim = await completeJson({
+    system: SIM_SYSTEM,
+    text: `Topic: ${topic.trim()}${expertName?.trim() ? `\nThe senior doctor is ${expertName.trim()}.` : ""}`,
+    schema: SIM_SCHEMA,
+    tier: "smart",
+  });
+  const author = expertName?.trim() || sim.expertName;
+
+  const profile = await profileForUseCase({ title: sim.title, useCase: sim.useCase, expertName: author });
   const workflow = await Workflow.create({
-    _id: DEMO_WORKFLOW_OID,
+    ...(ids.workflow && { _id: ids.workflow }),
     title: sim.title,
-    expertName: sim.expertName,
+    expertName: author,
     useCase: sim.useCase,
     ...profile,
     simulated: true,
@@ -140,7 +154,7 @@ export async function generateDemoWorkflow(topic) {
   const capture = await Session.create({
     workflowId: workflow._id,
     kind: "capture",
-    participantName: sim.expertName,
+    participantName: author,
     status: "done",
     events: (sim.events || []).map((e) => ({ at: e.sec * 1000, type: e.type, summary: e.summary })),
     transcript,
@@ -149,13 +163,13 @@ export async function generateDemoWorkflow(topic) {
 
   const built = await buildWorkMap({ workflow, sessions: [capture.toObject()], previous: null });
   const workMap = await WorkMap.create({
-    _id: DEMO_WORK_MAP_OID,
+    ...(ids.workMap && { _id: ids.workMap }),
     workflowId: workflow._id,
     version: 1,
     steps: built.steps,
     openQuestions: built.openQuestions,
     verification: built.verification,
-    teachBack: { text: "Simulated demo: the generated senior doctor's session, confirmed automatically.", confirmed: true, corrections: [] },
+    teachBack: { text: "Simulated: the generated senior doctor's session, confirmed automatically.", confirmed: true, corrections: [] },
     confirmedAt: new Date(),
   });
   workflow.workMapId = workMap._id;
