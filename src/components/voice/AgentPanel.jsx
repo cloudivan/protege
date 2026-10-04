@@ -2,8 +2,14 @@
 //   real: live ElevenLabs session (ConversationProvider + useConversation)
 //   mock: text chat against the same prompt via /api/agent/mock-turn
 // Both expose the same imperative API through `controlRef`:
-//   controlRef.current.sendContext(text)   push a screen event / "PAUSE"
+//   controlRef.current.sendContext(text)   silent background info (screen events)
+//   controlRef.current.prompt(text)        an instruction she must respond to now
+//                                           ("PAUSE. ASK: ...", "STEP 2: ...")
 //   controlRef.current.end()
+// A real ElevenLabs agent does not speak after a contextual update, only after
+// a user message, so prompt() sends a user message. Control messages are kept
+// out of the transcript (they are not the doctor talking).
+// `onConnected` (optional) runs once the agent is live, e.g. to brief it.
 //
 // `getAt()` returns ms since session start (the screen-moment clock).
 // `beforeStart` (optional) runs first on Start, e.g. to open the screen share
@@ -35,6 +41,9 @@ function withToolStubs(clientTools = {}) {
   }
   return tools;
 }
+
+// Instructions the page sends through prompt(); never shown or stored as speech.
+const CONTROL_RE = /^(PAUSE\b|CASE:|STEP \d|RESULT step|LESSON DONE|ALERT step)/;
 
 function logTurn(sessionId, role, text, at) {
   const question = role === "agent" && text.trim().endsWith("?") ? { kind: "other" } : undefined; // TODO(capture): classify why/guardrail
@@ -68,7 +77,7 @@ function Transcript({ turns }) {
 // read: an estimate from the text length (about 15 characters per second).
 const SPEECH_CPS = 15;
 
-function RealPanel({ sessionId, getAt, clientTools, controlRef, onUserTurn, beforeStart, onEnd }) {
+function RealPanel({ sessionId, getAt, clientTools, controlRef, onUserTurn, beforeStart, onEnd, onConnected }) {
   const [micMuted, setMicMuted] = useState(false);
   const [starting, setStarting] = useState(false);
   const [needsShare, setNeedsShare] = useState(false);
@@ -79,6 +88,7 @@ function RealPanel({ sessionId, getAt, clientTools, controlRef, onUserTurn, befo
     micMuted,
     onMessage: ({ message, role }) => {
       const r = role === "user" ? "user" : "agent";
+      if (r === "user" && CONTROL_RE.test(message.trim())) return;
       setTurns((t) => [...t, { role: r, text: message }]);
       logTurn(sessionId, r, message, getAt());
       if (r === "user") onUserTurn?.(message);
@@ -125,6 +135,7 @@ function RealPanel({ sessionId, getAt, clientTools, controlRef, onUserTurn, befo
   useEffect(() => {
     controlRef.current = {
       sendContext: (text) => connected && conversation.sendContextualUpdate?.(text),
+      prompt: (text) => connected && conversation.sendUserMessage?.(text),
       end: () => conversation.endSession(),
     };
   }, [connected, conversation, controlRef]);
@@ -157,8 +168,11 @@ function RealPanel({ sessionId, getAt, clientTools, controlRef, onUserTurn, befo
         connectionType: "websocket",
         dynamicVariables: data.dynamicVariables,
         clientTools: withToolStubs(clientTools),
-        onConnect: ({ conversationId }) =>
-          api(`/api/sessions/${sessionId}`, { method: "PATCH", body: { status: "live", elevenConversationId: conversationId } }),
+        onConnect: ({ conversationId }) => {
+          api(`/api/sessions/${sessionId}`, { method: "PATCH", body: { status: "live", elevenConversationId: conversationId } });
+          // controlRef is refreshed on the render after "connected"; brief her then.
+          setTimeout(() => onConnected?.(), 300);
+        },
         onDisconnect: () => api(`/api/sessions/${sessionId}`, { method: "PATCH", body: { status: "done" } }),
       });
     } catch (err) {
@@ -212,16 +226,21 @@ function RealPanel({ sessionId, getAt, clientTools, controlRef, onUserTurn, befo
 }
 
 // ---------------------------------------------------------------- mock voice
-function MockPanel({ sessionId, getAt, controlRef, onUserTurn, clientTools = {}, beforeStart }) {
+function MockPanel({ sessionId, getAt, controlRef, onUserTurn, clientTools = {}, beforeStart, onConnected }) {
   const [cfg, setCfg] = useState(null);
   const [turns, setTurns] = useState([]);
   const [draft, setDraft] = useState("");
   const history = useRef([]);
   const context = useRef([]);
   const busy = useRef(false);
+  const pending = useRef(false); // a prompt arrived while she was answering
 
   const agentTurn = async () => {
-    if (!cfg || busy.current) return;
+    if (!cfg) return;
+    if (busy.current) {
+      pending.current = true;
+      return;
+    }
     busy.current = true;
     try {
       const { text, toolCalls = [] } = await api("/api/agent/mock-turn", {
@@ -242,26 +261,26 @@ function MockPanel({ sessionId, getAt, controlRef, onUserTurn, clientTools = {},
       toast.error(e.message);
     } finally {
       busy.current = false;
+      if (pending.current) {
+        pending.current = false;
+        agentTurn();
+      }
     }
   };
 
   useEffect(() => {
     controlRef.current = {
+      // Silent background info, like a real contextual update.
       sendContext: (text) => {
         setTurns((t) => [...t, { role: "context", text: `[screen] ${text}` }]);
         context.current.push(text);
-        // Like the real agents: the interviewer only speaks on "PAUSE. ASK:"
-        // (the planner's question), the tutor on PAUSE, ALERT or LESSON DONE.
-        const speak =
-          text.startsWith("PAUSE. ASK") ||
-          (text === "PAUSE" && cfg?.role === "tutor") ||
-          text === "LESSON DONE" ||
-          text.startsWith("ALERT");
-        if (speak) {
-          history.current.push({ role: "user", text: `[screen events]\n${context.current.join("\n")}` });
-          context.current = [];
-          agentTurn();
-        }
+      },
+      // An instruction she answers now, with the screen events since the last one.
+      prompt: (text) => {
+        const events = context.current.length ? `[screen events]\n${context.current.join("\n")}\n\n` : "";
+        context.current = [];
+        history.current.push({ role: "user", text: `${events}${text}` });
+        agentTurn();
       },
       end: () => api(`/api/sessions/${sessionId}`, { method: "PATCH", body: { status: "done" } }),
     };
@@ -274,13 +293,14 @@ function MockPanel({ sessionId, getAt, controlRef, onUserTurn, clientTools = {},
     api(`/api/sessions/${sessionId}`, { method: "PATCH", body: { status: "live" } });
   };
 
-  // Like the real agents' first message: the tutor greets and the debrief
-  // interviewer opens. Capture stays silent (no opening_line) until PAUSE.
+  // Like the real agents' first message: the debrief interviewer opens, the
+  // tutor greets (or the page briefs it via onConnected). Capture stays silent.
   const opened = useRef(false);
   useEffect(() => {
     if (!cfg || opened.current) return;
     opened.current = true;
-    if (cfg.role === "tutor" || cfg.dynamicVariables?.opening_line) agentTurn();
+    if (onConnected) onConnected();
+    else if (cfg.role === "tutor" || cfg.dynamicVariables?.opening_line) agentTurn();
   }, [cfg]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const send = (e) => {

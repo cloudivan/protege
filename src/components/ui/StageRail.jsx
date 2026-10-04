@@ -4,9 +4,9 @@ import Link from "next/link";
 import { Check } from "lucide-react";
 
 export const STAGES = [
-  { key: "capture", label: "Capture", path: "capture", hint: "The expert works, Protégé asks why" },
+  { key: "capture", label: "Capture", path: "capture", hint: "The senior doctor works, Protégé asks why" },
   { key: "debrief", label: "Map", path: "debrief", hint: "A short debrief turns answers into a Work Map" },
-  { key: "teach", label: "Teach", path: "teach", hint: "A voice tutor coaches the new hire" },
+  { key: "teach", label: "Teach", path: "teach", hint: "Junior doctors practice a case with the tutor" },
 ];
 
 // How many stages a workflow has finished, from its status and Work Map.

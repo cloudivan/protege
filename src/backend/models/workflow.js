@@ -1,15 +1,14 @@
 import mongoose from "mongoose";
 
-// One expert task we want to capture and teach (e.g. "Process supplier
-// invoices"). Owns its sessions and its Work Map.
+// One clinical workflow a senior doctor teaches (title, doctor and use case
+// are free text). Owns its sessions and its Work Map.
 const workflowSchema = new mongoose.Schema(
   {
     title: { type: String, required: true },
-    // Preset id from src/config/scenarios (e.g. "invoices", which brings the
-    // sandbox ERP and demo cases), or "custom" for a free-text use case.
-    scenario: { type: String, default: "custom" },
+    // Legacy preset id from early builds; new workflows leave it unset.
+    scenario: { type: String },
     // The use case in the user's own words, and the domain profile generated
-    // from it (services/useCase.js). Presets fill these from their config.
+    // from it (services/useCase.js).
     useCase: { type: String },
     domain: { type: String },
     curiosity: [{ type: String }],
@@ -20,6 +19,12 @@ const workflowSchema = new mongoose.Schema(
       default: "draft",
     },
     workMapId: { type: mongoose.Schema.Types.ObjectId, ref: "WorkMap" },
+    // Generated demo (services/demoWorkflow.js): a simulated senior doctor,
+    // marked so the UI can say so. demoTopic is the topic it was made from.
+    simulated: { type: Boolean, default: false },
+    demoTopic: { type: String },
+    // Three lines for the landing page playback, generated with the demo.
+    playback: { type: mongoose.Schema.Types.Mixed },
   },
   { timestamps: true },
 );

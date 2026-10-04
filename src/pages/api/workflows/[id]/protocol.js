@@ -30,7 +30,7 @@ export default async function handler(req, res) {
     }
     return res.status(200).json({ protocol: data, markdown });
   } catch (error) {
-    console.error("workflows/[id]/protocol error:", error);
-    return res.status(500).json({ error: error.message });
+    if (!error.status) console.error("workflows/[id]/protocol error:", error);
+    return res.status(error.status || 500).json({ error: error.message, ...(error.needsTopic && { needsTopic: true }) });
   }
 }

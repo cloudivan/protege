@@ -9,7 +9,7 @@ const momentSchema = new mongoose.Schema(
     sessionId: { type: mongoose.Schema.Types.ObjectId, ref: "Session" },
     at: { type: Number }, // ms since session start
     frameKey: { type: String },
-    label: { type: String }, // "03:12, invoice 4471, cost center field"
+    label: { type: String }, // "03:12, medication plan, anticoagulation field"
   },
   { _id: false },
 );
@@ -27,7 +27,7 @@ const quoteSchema = new mongoose.Schema(
 const guardrailSchema = new mongoose.Schema(
   {
     kind: { type: String, enum: ["limit", "exception", "stop_and_ask", "never"] },
-    rule: { type: String, required: true }, // "No asset number, no capex booking."
+    rule: { type: String, required: true }, // "Never restart a DOAC without checking renal function."
     quote: quoteSchema,
     moment: momentSchema,
   },
@@ -37,11 +37,11 @@ const guardrailSchema = new mongoose.Schema(
 const stepSchema = new mongoose.Schema(
   {
     index: { type: Number, required: true },
-    title: { type: String, required: true }, // "Code the invoice to a cost center"
+    title: { type: String, required: true }, // "Adjust the anticoagulation in the discharge plan"
     moment: momentSchema,
-    decision: { type: String }, // "Re-coded from opex (4711) to capex (0400)"
+    decision: { type: String }, // "Switched apixaban 5 mg to 2.5 mg twice daily"
     isJudgmentCall: { type: Boolean, default: false },
-    reason: quoteSchema, // "Equipment over 5,000 EUR is always capex."
+    reason: quoteSchema, // "Over 80 and creatinine above 1.5, I always halve it."
     guardrails: [guardrailSchema],
   },
   { _id: false },

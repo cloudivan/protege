@@ -1,26 +1,28 @@
 // Landing hero: the tutor catching a mistake, played out like a live call.
 // Bubbles arrive one by one, her bars light up while she "speaks", and the
 // guardrail lands with a check. Loops. Reduced motion shows the end state.
+//
+// The lines are not hard-coded: they come from the generated demo
+// (workflow.playback, built from its verified Work Map). Without a demo the
+// card shows the tutor listening and no lines.
 import { useEffect, useState } from "react";
 import { Check } from "lucide-react";
 
-const SCRIPT = [
-  { from: "tutor", text: "Before you post it: this is 7,200 euros. Where does it go?", ms: 2600 },
-  { from: "you", text: "Opex, like the others?", ms: 1600 },
-  { from: "tutor", text: "Sabine would stop you here. Equipment over 5,000 euros is capex 0400, and only with an asset number.", ms: 3600 },
-];
+// Reading time per line, from its length.
+const msFor = (text) => Math.min(4200, Math.max(1500, text.length * 45));
 const CAUGHT_MS = 3400; // how long the finished scene stays before it loops
 const LEAD_MS = 700; // a beat of silence before each line
 
 const BAR_HEIGHTS = [16, 40, 64, 36, 16];
 
-export default function TutorPlayback() {
+export default function TutorPlayback({ lines = [], expertName }) {
+  const SCRIPT = lines.map((l) => ({ ...l, ms: msFor(l.text) }));
   // step = how many lines are on screen; SCRIPT.length + 1 = guardrail shown
   const [step, setStep] = useState(SCRIPT.length + 1);
   const [talking, setTalking] = useState(false);
 
   useEffect(() => {
-    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+    if (!SCRIPT.length || window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
     let alive = true;
     const timers = [];
     const at = (ms, fn) => timers.push(setTimeout(() => alive && fn(), ms));
@@ -46,19 +48,19 @@ export default function TutorPlayback() {
       alive = false;
       timers.forEach(clearTimeout);
     };
-  }, []);
+  }, [lines]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const caught = step > SCRIPT.length;
+  const caught = SCRIPT.length > 0 && step > SCRIPT.length;
 
   return (
     <section
-      aria-label="The tutor coaching a new hire"
+      aria-label="The tutor coaching a junior doctor"
       className="flex flex-col gap-5 rounded-3xl bg-white p-7 shadow-[0_1px_2px_rgba(15,23,42,0.06),0_24px_48px_-16px_rgba(15,23,42,0.18)]"
     >
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div className="flex flex-col">
           <strong className="text-[17px] font-semibold">Protégé Voice Tutor</strong>
-          <span className="text-sm text-[#475569]">Coaching in Sabine&apos;s words</span>
+          <span className="text-sm text-[#475569]">{expertName ? `Coaching in ${expertName}'s words` : "Coaching in the senior doctor's words"}</span>
         </div>
         <span className="inline-flex items-center gap-2 font-mono text-xs text-[#475569]">
           <span className="relative flex h-2 w-2">

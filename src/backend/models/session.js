@@ -3,7 +3,7 @@ import mongoose from "mongoose";
 // One live voice session. kind decides which module it belongs to:
 //   capture  (Module 1) expert works, interviewer asks why at pauses
 //   debrief  (Module 2) interviewer closes gaps, then teach-back
-//   teach    (Module 3) new hire works a case, tutor coaches
+//   teach    (Module 3) junior doctor works a case, tutor coaches
 //
 // `at` everywhere = milliseconds since session start. That is the "screen
 // moment" key the Work Map links to.
@@ -23,7 +23,7 @@ const screenEventSchema = new mongoose.Schema(
     at: { type: Number, required: true },
     // e.g. opened_record, field_changed, moved_item, approved, held, navigated
     type: { type: String, required: true },
-    summary: { type: String, required: true }, // "cost center 4711 -> 0400 on invoice 4471"
+    summary: { type: String, required: true }, // "eGFR field set to 28 in the discharge letter"
     data: { type: mongoose.Schema.Types.Mixed },
     frameKey: { type: String }, // stored frame for replay: "api/frames/<frameId>" (models/frame.js)
   },
@@ -74,6 +74,10 @@ const sessionSchema = new mongoose.Schema(
     // Teach sessions only
     interventions: [interventionSchema],
     mastery: { type: mongoose.Schema.Types.Mixed },
+    // The generated practice case (services/lessonGenerator.js) and the
+    // learner's progress through its steps (services/lessonGrader.js).
+    lesson: { type: mongoose.Schema.Types.Mixed },
+    progress: { type: mongoose.Schema.Types.Mixed },
     // Debrief sessions only
     teachBackConfirmed: { type: Boolean, default: false },
   },

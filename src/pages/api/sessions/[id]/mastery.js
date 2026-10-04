@@ -23,7 +23,7 @@ export default async function handler(req, res) {
       const workMap = await WorkMap.findById(workflow.workMapId).lean();
       const text = await complete({
         system:
-          'You grade a new hire\'s practice case against an expert\'s Work Map. Return ONLY JSON: {"mastered": string[], "practice": string[]}. Short items, in plain words, naming Work Map steps. A step with a caught or missed intervention goes to practice.',
+          'You grade a junior doctor\'s practice case against an expert\'s Work Map. Return ONLY JSON: {"mastered": string[], "practice": string[]}. Short items, in plain words, naming Work Map steps. A step with a caught or missed intervention goes to practice.',
         messages: [
           {
             role: "user",

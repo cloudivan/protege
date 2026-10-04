@@ -20,8 +20,9 @@ create workflow ─► capture session ─► POST map (draft) ─► debrief se
 | Method & path | Body | Returns |
 |---|---|---|
 | `GET /api/workflows` | | `{ workflows }` |
-| `POST /api/workflows` | `{ title, expertName, useCase, scenario? }` | `{ workflow }` (`useCase` is free text; `scenario: "invoices"` = demo preset with sandbox) |
-| `GET /api/workflows/[id]` | | `{ workflow, sessions, workMap }` (`id` may be `demo`) |
+| `POST /api/workflows` | `{ title, expertName, useCase }` | `{ workflow }` (all free text; a clinical profile is generated from `useCase`) |
+| `GET /api/workflows/[id]` | | `{ workflow, sessions, workMap }` (`id` may be `demo`: 404 `{ needsTopic }` until generated) |
+| `POST /api/workflows/demo` | `{ topic }` | `{ workflow }` generates the demo: a simulated senior doctor, verified Work Map, `workflow.playback` lines (about a minute) |
 | `POST /api/workflows/[id]/map` | `{ finalize?: boolean }` | `{ workMap }` |
 | `GET /api/workflows/[id]/protocol` | `?format=md` for a download | `{ protocol, markdown }` |
 
@@ -48,9 +49,8 @@ lists what was removed and why (good for a "verified" badge in the UI).
 | `POST /api/sessions/[id]/events` | `{ events: [{ at, type, summary }] }` | `{ stored }` (exact actions, e.g. from the sandbox) |
 | `POST /api/sessions/[id]/resolve-question` | `{ index, answer, at }` | `{ resolved, openLeft }` (debrief only) |
 | `POST /api/sessions/[id]/teach-back` | `{ summary, corrections: [], at }` | `{ confirmed, openLeft }` (debrief only) |
-| `POST /api/sessions/[id]/guardrail-check` | `{ at, action: { type, summary, invoice? }, storeEvent? }` | `{ verdict }` (teach only; sandbox before save, or per screen event) |
-| `POST /api/sessions/[id]/intervention` | `{ at, stepIndex, guardrail, learnerAction, outcome }` | (teach only) |
-| `POST /api/sessions/[id]/mastery` | `{ mastered?, practice? }` | `{ mastery }` (teach only; empty body = summarize) |
+| `POST /api/sessions/[id]/lesson` | | `{ lesson, progress, mastery }` (teach: generates the practice case on first call; expected answers stay server-side) |
+| `POST /api/sessions/[id]/answer` | `{ step, answer, at }` or `{ step, reveal: true, at }` | `{ verdict, missing, explanation, expected, expert, caught, next, done, progress, mastery }` (teach) |
 | `GET /api/frames/[id]` | | the stored screen frame (`<img src={"/" + frameKey}>`) |
 
 ## Voice agents and their client tools
@@ -65,8 +65,8 @@ lists what was removed and why (good for a "verified" badge in the UI).
 | Interviewer (debrief) | `resolve_question` | `{ index, answer }` | `useDebriefTools` |
 | Interviewer (debrief) | `confirm_teach_back` | `{ summary, corrections }` | `useDebriefTools` |
 | Tutor | `replay_moment` | `{ step_index }` | teach page |
-| Tutor | `log_intervention` | `{ step_index, guardrail, learner_action, outcome }` | teach page |
-| Tutor | `finish_lesson` | `{ mastered, practice }` | teach page |
+
+Grading, interventions and mastery are done by the backend (`/answer`), not by the tutor.
 
 ### Debrief page wiring
 
@@ -89,6 +89,9 @@ const clientTools = useDebriefTools({
 Before starting the debrief, the workflow needs a draft map: `POST /api/workflows/[id]/map`
 once after capture, otherwise the interviewer has no open questions.
 
-Pages send screen events and pauses to the agent with `controlRef.current.sendContext(text)`.
-Special updates: `PAUSE` (the user stopped working, the agent may speak), and for the
-tutor `ALERT step N: ...` and `LESSON DONE`.
+Pages talk to the agent through `controlRef.current`:
+- `sendContext(text)`: silent background info (screen events). A real agent does not speak after it.
+- `prompt(text)`: an instruction the agent answers now (sent as a hidden user message, never stored as speech):
+  `PAUSE. ASK: <question>` (interviewer, from the question planner), and for the tutor
+  `CASE: ...`, `STEP n: ...`, `RESULT step n: correct|partly|stopped|revealed ...`, `LESSON DONE: ...`.
+- `onConnected` on `AgentPanel` runs once the agent is live (e.g. to brief the tutor).

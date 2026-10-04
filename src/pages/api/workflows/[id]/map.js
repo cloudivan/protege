@@ -50,7 +50,7 @@ export default async function handler(req, res) {
     await workflow.save();
     return res.status(200).json({ workMap });
   } catch (error) {
-    console.error("workflows/[id]/map error:", error);
-    return res.status(500).json({ error: error.message });
+    if (!error.status) console.error("workflows/[id]/map error:", error);
+    return res.status(error.status || 500).json({ error: error.message, ...(error.needsTopic && { needsTopic: true }) });
   }
 }

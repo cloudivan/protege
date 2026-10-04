@@ -21,9 +21,9 @@ const SCHEMA = {
         properties: {
           type: {
             type: "string",
-            description: "opened_record | field_changed | moved_item | approved | held | sent_for_approval | navigated | other",
+            description: "opened_record | field_changed | order_placed | medication_changed | document_written | sent | navigated | other",
           },
-          summary: { type: "string", description: "Short, concrete: 'cost center 4711 -> 0400 on invoice 4471'" },
+          summary: { type: "string", description: "Short, concrete: 'apixaban 5 mg -> 2.5 mg twice daily in the medication plan'" },
         },
         required: ["type", "summary"],
       },
@@ -35,6 +35,6 @@ const SCHEMA = {
 export async function describeFrame({ frameBase64, recentEvents = [] }) {
   const prompt = `You watch a screen share of someone doing desk work. Report only what CHANGED compared to these recent events:
 ${JSON.stringify(recentEvents.slice(-5).map((e) => e.summary))}
-Name concrete record ids, field names and values. Never describe personal data (names of private persons, IBANs, emails); write [redacted] instead.`;
+Name concrete record ids, field names and values. Never describe personal data (patient names, dates of birth, IDs, addresses, phone numbers, emails); write [redacted] instead.`;
   return extractStructured({ prompt, schema: SCHEMA, fileBase64: frameBase64, mediaType: "image/jpeg" });
 }

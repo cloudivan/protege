@@ -20,7 +20,10 @@ export async function api(url, { method = "GET", body } = {}) {
     body: body ? JSON.stringify(body) : undefined,
   });
   const data = await res.json().catch(() => ({}));
-  if (!res.ok) throw new Error(data.error || `Request failed: ${res.status}`);
+  if (!res.ok) {
+    // status and data ride along, e.g. { needsTopic: true } for the demo.
+    throw Object.assign(new Error(data.error || `Request failed: ${res.status}`), { status: res.status, data });
+  }
   return data;
 }
 
