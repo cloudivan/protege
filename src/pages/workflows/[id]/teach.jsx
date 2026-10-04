@@ -12,7 +12,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/router";
-import { BookOpen, CheckCircle2, Circle, Eye, Loader2, Play, Quote, RotateCcw, ShieldAlert, Stethoscope } from "lucide-react";
+import { BookOpen, Loader2, Play } from "lucide-react";
 import { toast } from "sonner";
 import { api, noEmDash } from "@/lib/utils";
 import { Loader } from "@/components/ui/Loader";
@@ -22,87 +22,89 @@ import MasteryReport from "@/components/teach/MasteryReport";
 import DemoTopicGate from "@/components/demo/DemoTopicGate";
 import StageRail, { stagesDone } from "@/components/ui/StageRail";
 
-const STATUS_ICON = {
-  mastered: <CheckCircle2 className="h-4 w-4 text-success-500" />,
-  corrected: <RotateCcw className="h-4 w-4 text-warning-500" />,
-  revealed: <Eye className="h-4 w-4 text-muted-foreground" />,
-  open: <Circle className="h-4 w-4 text-muted-foreground" />,
-};
+// "Dr. Mei Tanaka" -> "MT"
+const initials = (name) =>
+  name
+    .replace(/^dr\.?\s+/i, "")
+    .split(/\s+/)
+    .map((x) => x[0])
+    .join("")
+    .slice(0, 2)
+    .toUpperCase();
 
-function CaseCard({ lesson }) {
+// The patient as a chart: who, where, the key facts as tiles, the full
+// history folded away.
+function PatientChart({ lesson }) {
   const c = lesson.case;
   return (
-    <section className="card p-6">
-      <p className="m-0 flex items-center gap-2 font-mono text-xs uppercase tracking-widest text-muted-foreground">
-        <Stethoscope className="h-3.5 w-3.5" /> Practice case · fictional patient
-      </p>
-      <h2 className="mt-2 font-serif text-xl font-bold">{c.title}</h2>
-      <p className="m-0 text-sm text-muted-foreground">{c.setting} · {c.patient}</p>
-      <p className="mt-3 text-sm">{c.presentation}</p>
-      <ul className="mt-3 grid list-none gap-1.5 p-0 text-sm sm:grid-cols-2">
+    <section className="card flex flex-col gap-4 p-6">
+      <div className="flex flex-col gap-1">
+        <span className="font-mono text-xs text-muted-foreground">Fictional patient</span>
+        <h2 className="m-0 text-xl font-semibold tracking-tight">{c.patient}</h2>
+        <span className="text-sm text-muted-foreground">{c.setting}</span>
+      </div>
+      <ul className="m-0 grid list-none gap-2 p-0 sm:grid-cols-2">
         {c.facts.map((f, i) => (
-          <li key={i} className="rounded border border-border bg-muted/40 px-3 py-1.5">{f}</li>
+          <li key={i} className="rounded-xl bg-muted px-3 py-2.5 text-sm leading-snug">{f}</li>
         ))}
       </ul>
+      <details className="text-sm leading-relaxed text-muted-foreground">
+        <summary className="cursor-pointer font-medium text-foreground">{c.title}</summary>
+        <p className="mb-0 mt-2">{c.presentation}</p>
+      </details>
     </section>
   );
 }
 
-function StepList({ lesson, progress, current }) {
+// One segment per step: done in ink, the current one orange, the rest grey.
+function ProgressBar({ lesson, progress, current }) {
+  const done = progress.filter((p) => p.status !== "open").length;
+  const mastered = progress.filter((p) => p.status === "mastered").length;
   return (
-    <ol className="m-0 list-none space-y-1 p-0 text-sm">
-      {lesson.steps.map((s) => {
-        const p = progress.find((x) => x.index === s.index);
-        return (
-          <li key={s.index} className={`flex items-center gap-2 rounded px-2 py-1.5 ${s.index === current ? "bg-primary/10 text-primary" : ""}`}>
-            {STATUS_ICON[p?.status || "open"]}
-            <span>{s.index}. {s.title}</span>
-          </li>
-        );
-      })}
-    </ol>
+    <div className="flex flex-col gap-2">
+      <div aria-hidden="true" className="grid gap-1.5" style={{ gridTemplateColumns: `repeat(${lesson.steps.length}, minmax(0, 1fr))` }}>
+        {lesson.steps.map((s) => {
+          const st = progress.find((x) => x.index === s.index)?.status || "open";
+          const color = s.index === current ? "bg-primary-400" : st === "open" ? "bg-border" : "bg-foreground";
+          return <span key={s.index} title={`${s.index}. ${s.title}`} className={`h-1.5 rounded-full transition-colors duration-500 ${color}`} />;
+        })}
+      </div>
+      <div className="flex justify-between text-sm text-muted-foreground">
+        <span>{current ? `Step ${current} of ${lesson.steps.length}` : `All ${lesson.steps.length} steps done`}</span>
+        <span>{mastered} mastered{done > mastered ? ` · ${done - mastered} with help` : ""}</span>
+      </div>
+    </div>
   );
 }
 
-// The backend's verdict, explained with the senior doctor's own words.
+// The backend's verdict as a reply from the senior doctor, in their words.
 function Verdict({ result, expertName, onReplay }) {
   const e = result.expert;
-  const tone = {
-    correct: "border-success-500 bg-success-500/5",
-    revealed: "border-border bg-muted/40",
-    partly: "border-warning-500 bg-warning-500/5",
-    incorrect: result.caught ? "sketch-border-alert bg-primary/5" : "border-warning-500 bg-warning-500/5",
-  }[result.verdict];
   const heading = {
     correct: `Right. That is what ${expertName} does.`,
-    revealed: `${expertName}'s decision`,
+    revealed: `Here is what ${expertName} decided.`,
     partly: "Almost. Something is missing.",
-    incorrect: result.caught ? `${expertName} would stop here.` : "Not quite. Try again.",
+    incorrect: result.caught ? `${expertName} would stop you here.` : "Not quite. Try again.",
   }[result.verdict];
+  const accent = result.verdict === "correct" ? "shadow-[inset_3px_0_0_#0F172A]" : result.caught ? "shadow-[inset_3px_0_0_#FF5A1F]" : "";
   return (
-    <div className={`animate-fadeIn space-y-3 rounded-md border-2 p-4 text-sm ${tone}`}>
-      <p className="m-0 flex items-center gap-2 font-semibold">
-        {result.caught && <ShieldAlert className="h-4 w-4 text-primary" />} {heading}
-      </p>
-      {result.missing && <p className="m-0">{result.missing}</p>}
-      {result.caught && e?.guardrail && (
-        <p className="m-0">
-          <span className="font-medium">{e.guardrail.rule}</span>
-          {e.guardrail.quote && <span className="text-muted-foreground"> &ldquo;{noEmDash(e.guardrail.quote)}&rdquo;</span>}
-        </p>
-      )}
-      {result.expected && <p className="m-0"><span className="text-muted-foreground">Decision: </span>{result.expected}</p>}
-      {result.explanation && <p className="m-0 text-muted-foreground">{result.explanation}</p>}
-      {e?.reason && (
-        <p className="m-0 flex gap-2 border-l-2 border-primary pl-2 font-serif italic">
-          <Quote className="mt-0.5 h-3.5 w-3.5 flex-shrink-0 not-italic" /> {noEmDash(e.reason)} <span className="not-italic text-muted-foreground">{expertName}</span>
-        </p>
-      )}
-      {e?.hasMoment && (
-        <button type="button" onClick={onReplay} className="flex items-center gap-2 rounded border border-border bg-card px-3 py-1.5 text-xs font-medium hover:bg-muted">
-          <Play className="h-3 w-3 fill-current text-primary" /> Replay {expertName}&apos;s screen moment
-        </button>
-      )}
+    <div className="playback-in flex max-w-[92%] items-start gap-3">
+      <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-foreground text-sm font-semibold text-background">
+        {initials(expertName)}
+      </span>
+      <div className={`card flex flex-col gap-3 rounded-[6px_20px_20px_20px] p-5 text-[15px] leading-relaxed ${accent}`}>
+        <strong className="text-base font-semibold">{heading}</strong>
+        {result.missing && <p className="m-0">{result.missing}</p>}
+        {result.caught && e?.guardrail && <p className="m-0 font-medium">{e.guardrail.rule}</p>}
+        {result.expected && <p className="m-0"><span className="text-muted-foreground">Decision: </span>{result.expected}</p>}
+        {result.explanation && <p className="m-0 text-muted-foreground">{result.explanation}</p>}
+        {e?.reason && <p className="m-0 text-muted-foreground">&ldquo;{noEmDash(e.reason)}&rdquo;</p>}
+        {e?.hasMoment && (
+          <button type="button" onClick={onReplay} className="flex items-center gap-2 self-start text-sm font-medium text-primary hover:underline">
+            <Play className="h-3.5 w-3.5 fill-current" /> See the moment {expertName} decided this
+          </button>
+        )}
+      </div>
     </div>
   );
 }
@@ -177,7 +179,7 @@ export default function TeachPage() {
         method: "POST",
         body: reveal ? { step: currentStep.index, reveal: true, at: getAt() } : { step: currentStep.index, answer, at: getAt() },
       });
-      setResults((x) => ({ ...x, [r.step]: r }));
+      setResults((x) => ({ ...x, [r.step]: { ...r, answerText: reveal ? null : answer } }));
       setProgress(r.progress);
       if (r.verdict === "correct" || r.verdict === "revealed") setAnswer("");
       // Brief the voice tutor so it explains, in the senior doctor's words.
@@ -250,61 +252,74 @@ export default function TeachPage() {
         )}
 
         {lesson && (
-          <div className="mt-8 grid grid-cols-1 gap-6 lg:grid-cols-12">
-            <section className="space-y-6 lg:col-span-7">
-              <CaseCard lesson={lesson} />
-              {currentStep && (
-                <section className="card space-y-4 p-6">
-                  <p className="m-0 font-mono text-xs uppercase tracking-widest text-muted-foreground">
-                    Step {currentStep.index} of {lesson.steps.length} · {currentStep.title}
-                  </p>
-                  <p className="m-0 text-lg font-medium">{currentStep.task}</p>
-                  {last && <Verdict result={last} expertName={expertName} onReplay={() => setReplayStep(workMapStep(currentStep.workMapStep))} />}
-                  <form
-                    onSubmit={(e) => {
-                      e.preventDefault();
-                      submit(false);
-                    }}
-                    className="space-y-3"
-                  >
-                    <textarea
-                      value={answer}
-                      onChange={(e) => setAnswer(e.target.value)}
-                      rows={3}
-                      placeholder="Your decision, as you would write or order it"
-                      className="w-full rounded-xl border border-border bg-card px-3 py-2 text-sm focus:border-foreground focus:outline-none focus:ring-0"
-                      disabled={checking}
-                    />
-                    <div className="flex flex-wrap items-center gap-2">
-                      <button type="submit" disabled={checking || !answer.trim()} className="btn btn-primary gap-2 disabled:opacity-50">
-                        {checking ? <><Loader2 className="h-4 w-4 animate-spin" /> Checking against {expertName}&apos;s rules…</> : "Check my decision"}
-                      </button>
-                      <button type="button" onClick={() => submit(true)} disabled={checking} className="btn btn-secondary disabled:opacity-50">
-                        <Eye className="mr-2 h-4 w-4" /> Show me {expertName}&apos;s decision
-                      </button>
-                    </div>
-                  </form>
-                </section>
-              )}
-              {!currentStep && lastDone && <Verdict result={lastDone} expertName={expertName} onReplay={() => setReplayStep(workMapStep(finalStep.workMapStep))} />}
-              {mastery && <MasteryReport mastery={mastery} interventions={[]} />}
-            </section>
+          <div className="mt-8 flex flex-col gap-8">
+            <ProgressBar lesson={lesson} progress={progress} current={current} />
+            <div className="flex flex-wrap items-start gap-7">
+              <aside className="flex min-w-0 flex-[1_1_340px] flex-col gap-6 lg:max-w-[400px]">
+                <PatientChart lesson={lesson} />
+                <AgentPanel
+                  title="Talk it through"
+                  subtitle={`A voice tutor that explains in ${expertName}'s words. Optional.`}
+                  sessionId={session._id}
+                  getAt={getAt}
+                  controlRef={controlRef}
+                  clientTools={clientTools}
+                  onConnected={briefTutor}
+                />
+              </aside>
 
-            <section className="space-y-6 lg:col-span-5">
-              <section className="card p-5">
-                <h2 className="mb-3 mt-0 font-semibold">Steps</h2>
-                <StepList lesson={lesson} progress={progress} current={current} />
+              <section className="flex min-w-0 flex-[999_1_520px] flex-col gap-5">
+                {currentStep && (
+                  <>
+                    <h2 className="m-0 text-[clamp(24px,2.6vw,34px)] font-semibold leading-tight tracking-[-0.03em]">{currentStep.task}</h2>
+                    <div className="flex flex-col gap-3">
+                      {last?.answerText && (
+                        <p className="playback-in m-0 max-w-[75%] self-end rounded-[20px_20px_6px_20px] bg-foreground px-5 py-3.5 text-[15px] leading-relaxed text-background">
+                          {last.answerText}
+                        </p>
+                      )}
+                      {last && <Verdict result={last} expertName={expertName} onReplay={() => setReplayStep(workMapStep(currentStep.workMapStep))} />}
+                    </div>
+                    <form
+                      onSubmit={(e) => {
+                        e.preventDefault();
+                        submit(false);
+                      }}
+                      className="flex items-end gap-2.5 rounded-[20px] bg-card p-2.5 pl-5 shadow-[0_1px_2px_rgba(15,23,42,0.06),0_20px_40px_-20px_rgba(15,23,42,0.30)]"
+                    >
+                      <label className="flex min-w-0 flex-1">
+                        <span className="sr-only">Your decision</span>
+                        <textarea
+                          value={answer}
+                          onChange={(e) => setAnswer(e.target.value)}
+                          onKeyDown={(e) => {
+                            if (e.key === "Enter" && !e.shiftKey) {
+                              e.preventDefault();
+                              submit(false);
+                            }
+                          }}
+                          rows={2}
+                          placeholder={last ? "Try again: your decision, as you would order it" : "Your decision, as you would write or order it"}
+                          className="min-w-0 flex-1 resize-none border-0 bg-transparent p-0 py-2 text-base leading-relaxed outline-none placeholder:text-muted-foreground/70 focus:ring-0"
+                          disabled={checking}
+                        />
+                      </label>
+                      <button type="submit" disabled={checking || !answer.trim()} className="btn btn-primary min-h-[44px] gap-2 px-5 disabled:opacity-50">
+                        {checking ? <><Loader2 className="h-4 w-4 animate-spin" /> Checking…</> : "Check"}
+                      </button>
+                    </form>
+                    <div className="flex flex-wrap justify-between gap-3 text-sm text-muted-foreground">
+                      <button type="button" onClick={() => submit(true)} disabled={checking} className="underline-offset-4 hover:text-foreground hover:underline disabled:opacity-50">
+                        Show me {expertName}&apos;s decision
+                      </button>
+                      <span>Training only. Fictional patients, not medical advice.</span>
+                    </div>
+                  </>
+                )}
+                {!currentStep && lastDone && <Verdict result={lastDone} expertName={expertName} onReplay={() => setReplayStep(workMapStep(finalStep.workMapStep))} />}
+                {mastery && <MasteryReport mastery={mastery} interventions={[]} />}
               </section>
-              <AgentPanel
-                title="Voice tutor (optional)"
-                subtitle={`Talks you through the case in ${expertName}'s words. Ask it anything.`}
-                sessionId={session._id}
-                getAt={getAt}
-                controlRef={controlRef}
-                clientTools={clientTools}
-                onConnected={briefTutor}
-              />
-            </section>
+            </div>
           </div>
         )}
       </div>
