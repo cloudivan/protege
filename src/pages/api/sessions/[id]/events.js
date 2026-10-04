@@ -2,8 +2,8 @@ import dbConnect from "@/lib/dbConnect";
 import Session from "@/backend/models/session";
 
 // POST { events: [{ at, type, summary, data? }] } -> { stored }
-// Exact actions from the sandbox ERP (src/lib/sandboxChannel.js), stored next
-// to the vision events from screen frames. Dropped while off the record.
+// Exact actions reported by an integration (instead of read from screen
+// frames), stored next to the vision events. Dropped while off the record.
 export default async function handler(req, res) {
   if (req.method !== "POST") return res.status(405).json({ error: "Method not allowed" });
   try {

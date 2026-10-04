@@ -51,7 +51,7 @@ const SCHEMA = {
         additionalProperties: false,
         properties: {
           index: { type: "integer" },
-          title: { type: "string", description: "Imperative, short: 'Code the invoice to a cost center'." },
+          title: { type: "string", description: "Imperative, short: 'Adjust the anticoagulation in the discharge plan'." },
           decision: { type: "string", description: "What the expert decided here, concretely." },
           isJudgmentCall: { type: "boolean", description: "True when the step needed the expert's judgment, not just a click." },
           moment: {
@@ -60,7 +60,7 @@ const SCHEMA = {
             properties: {
               sessionId: { type: "string" },
               at: { type: "integer", description: "The at= value of the screen event this step happened at." },
-              label: { type: "string", description: "'mm:ss, record, field', e.g. '03:12, invoice 4471, cost center field'." },
+              label: { type: "string", description: "'mm:ss, record, field', e.g. '03:12, medication plan, anticoagulation field'." },
             },
             required: ["sessionId", "at", "label"],
           },

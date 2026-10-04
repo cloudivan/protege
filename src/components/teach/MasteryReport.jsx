@@ -1,10 +1,10 @@
-// Module 3 end screen: what the new hire mastered and what to practice next.
+// Module 3 end screen: what the junior doctor mastered and what to practice next.
 // mastery comes from the tutor's finish_lesson tool (or the summary fallback in
 // /api/sessions/[id]/mastery); interventions are the tutor's catches.
 // Items pop in one after another, so finishing a lesson feels like a reward.
 import { Check, RotateCcw, ShieldAlert } from "lucide-react";
 
-const OUTCOME_LABEL = { caught: "Caught before saving", corrected: "Fixed by the new hire", missed: "Missed" };
+const OUTCOME_LABEL = { caught: "Caught before saving", corrected: "Fixed by the junior doctor", missed: "Missed" };
 
 export default function MasteryReport({ mastery, interventions = [] }) {
   if (!mastery) return null;

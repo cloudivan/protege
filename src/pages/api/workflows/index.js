@@ -1,30 +1,18 @@
 import dbConnect from "@/lib/dbConnect";
 import Workflow from "@/backend/models/workflow";
-import getScenario from "@/config/scenarios";
 import { profileForUseCase } from "@/backend/services/useCase";
 
-// POST { title, expertName, useCase, scenario? }
-// useCase is free text ("insurance claims triage"). scenario is optional: a
-// preset id such as "invoices" (brings its sandbox and demo cases); anything
-// else is a custom use case whose domain profile is generated from the text.
-const readBody = (body = {}) => {
-  const title = body.title?.trim();
-  const preset = getScenario(body.scenario);
-  const useCase = body.useCase?.trim() || preset?.label || "";
-  return { title, preset, useCase, expertName: body.expertName?.trim() };
-};
+// POST { title, expertName, useCase }
+// All free text: the workflow, the senior doctor, and the kind of clinical
+// work. The domain profile for the agents is generated from it.
+const readBody = (body = {}) => ({
+  title: body.title?.trim(),
+  useCase: body.useCase?.trim() || "",
+  expertName: body.expertName?.trim(),
+});
 
-// In-memory fallback for local dev when MongoDB_URI is not yet configured
-let inMemoryWorkflows = [
-  {
-    _id: "demo",
-    title: "Process supplier invoices",
-    scenario: "invoices",
-    expertName: "Sabine",
-    status: "mapped",
-    createdAt: new Date().toISOString(),
-  },
-];
+// In-memory fallback for local dev when MONGODB_URI is not configured.
+let inMemoryWorkflows = [];
 
 export default async function handler(req, res) {
   if (!process.env.MONGODB_URI) {
@@ -32,12 +20,11 @@ export default async function handler(req, res) {
       return res.status(200).json({ workflows: inMemoryWorkflows });
     }
     if (req.method === "POST") {
-      const { title, preset, useCase, expertName } = readBody(req.body);
+      const { title, useCase, expertName } = readBody(req.body);
       if (!title || !useCase) return res.status(400).json({ error: "title and useCase are required" });
       const newWorkflow = {
         _id: `wf-${Date.now()}`,
         title,
-        scenario: preset?.id || "custom",
         useCase,
         expertName,
         status: "draft",
@@ -55,12 +42,10 @@ export default async function handler(req, res) {
       return res.status(200).json({ workflows });
     }
     if (req.method === "POST") {
-      const { title, preset, useCase, expertName } = readBody(req.body);
+      const { title, useCase, expertName } = readBody(req.body);
       if (!title || !useCase) return res.status(400).json({ error: "title and useCase are required" });
-      const profile = preset
-        ? { domain: preset.domain, curiosity: preset.curiosity }
-        : await profileForUseCase({ title, useCase, expertName });
-      const workflow = await Workflow.create({ title, scenario: preset?.id || "custom", useCase, expertName, ...profile });
+      const profile = await profileForUseCase({ title, useCase, expertName });
+      const workflow = await Workflow.create({ title, useCase, expertName, ...profile });
       return res.status(201).json({ workflow });
     }
     return res.status(405).json({ error: "Method not allowed" });

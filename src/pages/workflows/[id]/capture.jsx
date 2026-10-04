@@ -37,7 +37,7 @@ export default function CapturePage() {
 
   const send = (text) => controlRef.current?.sendContext(text);
   // At a pause the backend planner picks the one question worth asking (or none).
-  const { onPause } = useQuestionPlanner({ sessionId: session?._id, getAt, send });
+  const { onPause } = useQuestionPlanner({ sessionId: session?._id, getAt, prompt: (t) => controlRef.current?.prompt(t) });
   const { markActivity } = usePauseDetector({
     onPause,
     enabled: Boolean(session) && sharing,
@@ -101,18 +101,9 @@ export default function CapturePage() {
       <main className="max-w-7xl mx-auto px-6 py-8 grid grid-cols-1 lg:grid-cols-12 gap-8">
         {/* Left Column: Screen Share & Event Feed */}
         <section className="lg:col-span-7 space-y-6">
-          <div className="flex items-center justify-between bg-muted/40 p-3 rounded border border-border text-xs">
-            <span className="text-muted-foreground">
-              Testing locally without an external app?
-            </span>
-            <Link
-              href="/sandbox/erp"
-              target="_blank"
-              className="font-mono text-primary hover:underline inline-flex items-center gap-1"
-            >
-              Open Sandbox ERP in New Tab <ExternalLink className="h-3 w-3" />
-            </Link>
-          </div>
+          <p className="bg-muted/40 p-3 rounded border border-border text-xs text-muted-foreground">
+            Share the window of the system you work in. Use test or fictional patients only.
+          </p>
 
           {session ? (
             <ScreenShare

@@ -8,8 +8,8 @@
 //                back, and on "yes" the final Work Map is built (useDebriefTools).
 //   4. protocol  The readable protocol (GET /api/workflows/[id]/protocol).
 //
-// Sandbox ERP actions arrive exactly over the sandbox channel; vision events
-// come from the shared screen. Both go to the session and to the agent.
+// Screen events come from the shared screen (vision); they go to the session
+// and, as context, to the agent.
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
@@ -21,8 +21,6 @@ import { useLiveSession } from "@/lib/useLiveSession";
 import { usePauseDetector } from "@/lib/usePauseDetector";
 import { useQuestionPlanner } from "@/lib/useQuestionPlanner";
 import { useDebriefTools } from "@/lib/useDebriefTools";
-import { openSandboxChannel } from "@/lib/sandboxChannel";
-import getScenario from "@/config/scenarios";
 import { Loader } from "@/components/ui/Loader";
 import AgentPanel from "@/components/voice/AgentPanel";
 import ScreenShare from "@/components/capture/ScreenShare";
@@ -139,7 +137,7 @@ function Protocol({ protocol, workflowId }) {
           </div>
           <div className="flex gap-2">
             <a href={`/api/workflows/${workflowId}/protocol?format=md`} className="btn btn-secondary"><Download className="mr-2 h-4 w-4" /> Download .md</a>
-            <Link href={`/workflows/${workflowId}/teach`} className="btn btn-primary"><GraduationCap className="mr-2 h-4 w-4" /> Teach a new hire</Link>
+            <Link href={`/workflows/${workflowId}/teach`} className="btn btn-primary"><GraduationCap className="mr-2 h-4 w-4" /> Teach a junior doctor</Link>
           </div>
         </div>
         <dl className="mt-5 grid grid-cols-2 gap-3 text-sm sm:grid-cols-4">
@@ -253,7 +251,7 @@ export default function LearnPage() {
 
   // ------------------------------------------------------------ capture
   const send = (text) => controlRef.current?.sendContext(text);
-  const { onPause, last, stats, setStats } = useQuestionPlanner({ sessionId: capture?._id, getAt, send });
+  const { onPause, last, stats, setStats } = useQuestionPlanner({ sessionId: capture?._id, getAt, prompt: (t) => controlRef.current?.prompt(t) });
   const { markActivity } = usePauseDetector({ onPause, enabled: Boolean(capture) && sharing && phase === "capture" });
 
   const addEvents = useCallback(
@@ -273,18 +271,6 @@ export default function LearnPage() {
     },
     [addEvents, markActivity],
   );
-
-  // Exact actions from the sandbox ERP tab.
-  useEffect(() => {
-    if (!capture || phase !== "capture") return;
-    const ch = openSandboxChannel((msg) => {
-      if (msg.type !== "event") return;
-      const e = { at: getAt(), type: msg.event.type, summary: msg.event.summary, data: msg.event.invoice };
-      api(`/api/sessions/${capture._id}/events`, { method: "POST", body: { events: [e] } }).catch(() => {});
-      addEvents([e]);
-    });
-    return () => ch.close();
-  }, [capture, phase, getAt, addEvents]);
 
   // Keep the question log current (questions are stored server-side).
   useEffect(() => {
@@ -356,12 +342,9 @@ export default function LearnPage() {
             <section className="space-y-6 lg:col-span-7">
               <div className="card p-5 text-sm">
                 <p>
-                  Do the task the way you always do and talk if you like. Protégé watches the screen, stays quiet while you work and asks short questions at natural pauses. Click <strong>Start</strong>, choose the screen or tab you work in, then begin.
+                  Do the workflow the way you always do and talk if you like. Protégé watches the screen, stays quiet while you work and asks short questions at natural pauses. Click <strong>Start</strong>, choose the window of the system you work in, then begin. Use test or fictional patients only.
                 </p>
                 <div className="mt-4 flex flex-wrap items-center gap-2">
-                  {getScenario(workflow.scenario)?.sandbox && (
-                    <a href="/sandbox/erp?set=capture" target="_blank" rel="noreferrer" className="btn btn-secondary"><ExternalLink className="mr-2 h-4 w-4" /> Open sandbox ERP</a>
-                  )}
                   {capture && <OffRecordButton sessionId={capture._id} getAt={getAt} />}
                   <button type="button" onClick={finishCapture} disabled={!capture || !sharing} className="btn btn-primary ml-auto disabled:opacity-50">
                     <CheckCircle2 className="mr-2 h-4 w-4" /> Finished, start the debrief
