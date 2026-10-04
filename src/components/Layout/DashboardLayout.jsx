@@ -7,7 +7,7 @@ import { Logo } from "@/components/Logo";
 
 const NAV_ITEMS = [
   { href: "/workflows", label: "Workflows", Icon: Workflow, exact: false },
-  { href: "/workflows/new", label: "New Workflow", Icon: Plus, exact: true },
+  { href: "/workflows/new", label: "Create workflow", Icon: Plus, exact: true },
 ];
 
 export default function DashboardLayout({ children }) {
