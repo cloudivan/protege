@@ -9,7 +9,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/router";
-import { AlertCircle, CheckCircle2, ExternalLink, Flag, Play } from "lucide-react";
+import { AlertCircle, ExternalLink, Flag, Play } from "lucide-react";
 import { toast } from "sonner";
 import { api } from "@/lib/utils";
 import getScenario from "@/config/scenarios";
@@ -22,6 +22,7 @@ import ScreenShare from "@/components/capture/ScreenShare";
 import EventFeed from "@/components/capture/EventFeed";
 import MomentReplay from "@/components/teach/MomentReplay";
 import MasteryReport from "@/components/teach/MasteryReport";
+import StageRail, { stagesDone } from "@/components/ui/StageRail";
 
 const LEARNER = "Lena (new hire)";
 
@@ -168,10 +169,8 @@ export default function TeachPage() {
       <div className="mx-auto max-w-6xl px-6 py-8">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
-            <span className="rounded bg-primary/10 px-2 py-0.5 font-mono text-xs uppercase tracking-widest text-primary">
-              Module 3 · Voice Tutor
-            </span>
-            <h1 className="mt-2 font-serif text-2xl font-bold">{workflow.title}</h1>
+            <StageRail workflowId={workflow._id} current="teach" done={stagesDone(workflow, true)} />
+            <h1 className="mt-5 text-3xl font-semibold tracking-tight">{workflow.title}</h1>
             <p className="text-sm text-muted-foreground">
               A case {expertName} never showed. The tutor coaches in {expertName}&apos;s words and steps in before a guardrail is broken.
             </p>
@@ -295,11 +294,6 @@ export default function TeachPage() {
               <button type="button" onClick={() => { send("LESSON DONE"); finish(); }} disabled={finishing} className="btn btn-secondary w-full disabled:opacity-50">
                 <Flag className="mr-2 h-4 w-4" /> {finishing ? "Summarizing…" : "Finish lesson"}
               </button>
-            )}
-            {mastery && (
-              <div className="flex items-center gap-2 text-xs font-medium text-emerald-700 dark:text-emerald-400">
-                <CheckCircle2 className="h-4 w-4" /> Lesson complete
-              </div>
             )}
             <MasteryReport mastery={mastery} interventions={interventions} />
           </section>

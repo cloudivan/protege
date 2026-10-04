@@ -10,7 +10,7 @@ import { api } from "@/lib/utils";
 import { useLiveSession } from "@/lib/useLiveSession";
 import { usePauseDetector } from "@/lib/usePauseDetector";
 import { useQuestionPlanner } from "@/lib/useQuestionPlanner";
-import { Logo } from "@/components/Logo";
+import StageRail from "@/components/ui/StageRail";
 import ScreenShare from "@/components/capture/ScreenShare";
 import EventFeed from "@/components/capture/EventFeed";
 import OffRecordButton from "@/components/capture/OffRecordButton";
@@ -72,15 +72,12 @@ export default function CapturePage() {
   return (
     <div className="min-h-screen bg-background paper-grid text-foreground">
       {/* Editorial Header */}
-      <header className="border-b border-border bg-card/80 backdrop-blur px-6 py-4 flex items-center justify-between">
+      <header className="border-b border-border bg-card/80 backdrop-blur px-6 py-3 flex flex-wrap gap-3 items-center justify-between">
         <div className="flex items-center gap-4">
           <Link href="/workflows" className="text-muted-foreground hover:text-foreground">
             <ArrowLeft className="h-4 w-4" />
           </Link>
-          <Logo className="text-lg" />
-          <span className="text-xs uppercase tracking-widest px-2 py-0.5 rounded bg-primary/10 text-primary font-mono font-medium">
-            Stage 01 · Non-Intrusive Capture
-          </span>
+          <StageRail workflowId={workflowId} current="capture" done={0} />
         </div>
         <div className="flex items-center gap-4 text-xs font-mono">
           <span className="text-muted-foreground">
@@ -93,7 +90,7 @@ export default function CapturePage() {
             type="button"
             onClick={proceedToDebrief}
             disabled={finishing}
-            className="px-3.5 py-1.5 rounded bg-primary text-white font-medium hover:bg-primary/90 transition shadow-sm inline-flex items-center gap-1.5 disabled:opacity-60"
+            className="btn btn-primary gap-1.5 font-sans disabled:opacity-60"
           >
             {finishing ? "Building Work Map…" : <>Finish &amp; Debrief <ArrowRight className="h-3.5 w-3.5" /></>}
           </button>

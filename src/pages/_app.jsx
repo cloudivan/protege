@@ -4,11 +4,11 @@ import Head from "next/head";
 import { useRouter } from "next/router";
 import { ThemeProvider } from "next-themes";
 import { Toaster } from "sonner";
-import { Plus_Jakarta_Sans, DM_Sans } from "next/font/google";
+import { Geist, Geist_Mono } from "next/font/google";
 import DashboardLayout from "@/components/Layout/DashboardLayout";
 
-const jakarta = Plus_Jakarta_Sans({ variable: "--font-jakarta", subsets: ["latin"], display: "swap" });
-const dmSans = DM_Sans({ variable: "--font-dm-sans", subsets: ["latin"], display: "swap" });
+const geist = Geist({ variable: "--font-geist", subsets: ["latin"], display: "swap" });
+const geistMono = Geist_Mono({ variable: "--font-geist-mono", subsets: ["latin"], display: "swap" });
 
 const DASHBOARD_ROUTE_PREFIXES = ["/workflows"];
 
@@ -21,7 +21,7 @@ function MyApp({ Component, pageProps }) {
   // Mirror the font variable classes onto <html> so portaled content
   // (toasts, modals) inherits the app fonts.
   useEffect(() => {
-    const classes = ["app-fonts", jakarta.variable, dmSans.variable];
+    const classes = ["app-fonts", geist.variable, geistMono.variable];
     const html = document.documentElement;
     html.classList.add(...classes);
     return () => html.classList.remove(...classes);
@@ -38,7 +38,7 @@ function MyApp({ Component, pageProps }) {
         <title>Protégé</title>
       </Head>
       <ThemeProvider attribute="class" defaultTheme="light" enableSystem disableTransitionOnChange>
-        <div className={`app-fonts ${jakarta.variable} ${dmSans.variable}`}>{content}</div>
+        <div className={`app-fonts ${geist.variable} ${geistMono.variable}`}>{content}</div>
         <Toaster
           position="top-center"
           offset={6}

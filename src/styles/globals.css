@@ -4,36 +4,48 @@
 
 @layer base {
   :root {
-    --background: 40 20% 97%;       /* #FAF8F5 Warm Claude parchment */
-    --foreground: 30 10% 12%;       /* #22201E Deep charcoal ink */
-    --card: 40 25% 99%;             /* #FCFAF7 Clean paper card */
-    --card-foreground: 30 10% 12%;
-    --popover: 40 25% 99%;
-    --popover-foreground: 30 10% 12%;
-    --primary: 16 65% 52%;          /* #D9603B Claude signature terracotta */
+    --background: 210 17% 94%;      /* #ECEFF2 cool slate ground */
+    --foreground: 222 47% 11%;      /* #0F172A ink */
+    --card: 0 0% 100%;              /* white surfaces */
+    --card-foreground: 222 47% 11%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 222 47% 11%;
+    --primary: 17 88% 40%;          /* #C2410C orange that passes as text */
     --primary-foreground: 0 0% 100%;
-    --secondary: 35 15% 92%;        /* #EBE7DF Warm stone secondary */
-    --secondary-foreground: 30 10% 12%;
-    --muted: 35 15% 92%;
-    --muted-foreground: 30 8% 46%;  /* #78736E Pencil graphite */
-    --accent: 38 90% 50%;           /* #F59E0B Warm ochre highlight */
+    --signal: 16 100% 56%;          /* #FF5A1F signal orange: voice, live */
+    --ink: 222 47% 11%;             /* primary buttons */
+    --ink-foreground: 0 0% 100%;
+    --secondary: 210 40% 96%;
+    --secondary-foreground: 222 47% 11%;
+    --muted: 210 40% 96%;           /* #F1F5F9 */
+    --muted-foreground: 215 19% 35%; /* #475569 */
+    --accent: 16 100% 56%;
     --accent-foreground: 0 0% 100%;
-    --destructive: 0 72% 51%;       /* #DC2626 Warning red */
+    --destructive: 0 72% 51%;
     --destructive-foreground: 0 0% 100%;
-    --border: 35 15% 88%;           /* #E5DFD5 Crisp architectural line */
-    --input: 35 15% 86%;
-    --ring: 16 65% 52%;
-    --radius: 0.375rem;
+    --border: 214 32% 91%;          /* #E2E8F0 */
+    --input: 214 32% 86%;
+    --ring: 222 47% 11%;
+    --radius: 0.75rem;
   }
 
   .dark {
-    --background: 30 10% 9%;        /* #1A1816 Dark charcoal desk */
-    --foreground: 40 20% 94%;       /* #F5F1EA Soft parchment text */
-    --card: 30 10% 12%;
-    --card-foreground: 40 20% 94%;
-    --border: 30 10% 20%;
-    --muted: 30 10% 16%;
-    --muted-foreground: 35 10% 60%;
+    --background: 222 47% 6%;
+    --foreground: 210 40% 96%;
+    --card: 222 40% 10%;
+    --card-foreground: 210 40% 96%;
+    --popover: 222 40% 10%;
+    --popover-foreground: 210 40% 96%;
+    --primary: 20 100% 62%;
+    --ink: 210 40% 96%;
+    --ink-foreground: 222 47% 11%;
+    --secondary: 222 30% 16%;
+    --secondary-foreground: 210 40% 96%;
+    --muted: 222 30% 14%;
+    --muted-foreground: 215 20% 70%;
+    --border: 222 25% 20%;
+    --input: 222 25% 26%;
+    --ring: 210 40% 96%;
   }
 }
 
@@ -43,10 +55,11 @@ body {
   font-feature-settings: "cv02", "cv03", "cv04", "cv11";
 }
 
-/* Claude Architectural Blueprint & Sketch Elements */
+/* Surfaces: hairline border plus a soft lift (the old sketch look, retired). */
 .sketch-border {
-  border: 1.5px solid hsl(var(--border));
-  box-shadow: 2px 2px 0px 0px hsl(var(--border));
+  border: 1px solid hsl(var(--border));
+  border-radius: 1rem;
+  box-shadow: 0 1px 2px rgb(15 23 42 / 0.05), 0 12px 32px -18px rgb(15 23 42 / 0.25);
 }
 
 .sketch-border-alert {
@@ -59,9 +72,9 @@ body {
   50% { border-color: hsl(var(--accent)); }
 }
 
+/* Was a dotted paper grid; now the plain slate ground. */
 .paper-grid {
-  background-image: radial-gradient(hsl(var(--border)) 1px, transparent 1px);
-  background-size: 20px 20px;
+  background-color: hsl(var(--background));
 }
 
 /* ------------------------------------------------------------------------
@@ -69,8 +82,9 @@ body {
    dropped them but most pages and components still use card / btn / input. */
 
 .app-fonts {
-  --font-display: var(--font-jakarta); /* headings */
-  --font-body: var(--font-dm-sans); /* body copy */
+  --font-display: var(--font-geist); /* headings */
+  --font-body: var(--font-geist); /* body copy */
+  --font-mono: var(--font-geist-mono); /* labels, numbers */
   font-family: var(--font-body), ui-sans-serif, system-ui, sans-serif;
 }
 
@@ -96,22 +110,28 @@ body {
 
 
 .card {
-  @apply bg-card text-card-foreground rounded-lg;
-  border: 1.5px solid hsl(var(--border));
-  box-shadow: 2px 2px 0px 0px hsl(var(--border));
+  @apply bg-card text-card-foreground;
+  border: 1px solid hsl(var(--border));
+  border-radius: 1rem;
+  box-shadow: 0 1px 2px rgb(15 23 42 / 0.05), 0 12px 32px -18px rgb(15 23 42 / 0.25);
 }
 
+/* Buttons: ink for the main action (orange stays a signal, not a fill), a
+   small press-down on click for tactile feedback. */
 .btn {
-  @apply inline-flex items-center justify-center rounded px-4 py-2 text-sm font-medium shadow-sm transition focus:outline-none focus:ring-2 focus:ring-offset-2;
+  @apply inline-flex min-h-[40px] items-center justify-center rounded-xl px-4 py-2 text-sm font-medium transition focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2;
   --tw-ring-color: hsl(var(--ring));
+}
+.btn:active:not(:disabled) {
+  transform: translateY(1px) scale(0.98);
 }
 
 .btn-primary {
-  background-color: hsl(var(--primary));
-  color: hsl(var(--primary-foreground));
+  background-color: hsl(var(--ink));
+  color: hsl(var(--ink-foreground));
 }
 .btn-primary:hover {
-  background-color: hsl(var(--primary) / 0.9);
+  background-color: hsl(var(--ink) / 0.88);
 }
 
 .btn-secondary {
@@ -174,9 +194,9 @@ body {
   display: none;
 }
 
-/* Input styles. Focus is shown with a brand-blue border (not a ring). */
+/* Input styles. Focus is shown with an ink border (not a ring). */
 .input {
-  @apply w-full pl-3 pr-3 py-2 bg-background border border-border rounded-lg text-foreground placeholder:text-muted-foreground/55 focus:outline-none focus:border-primary-400;
+  @apply w-full pl-3 pr-3 py-2 bg-background border border-border rounded-lg text-foreground placeholder:text-muted-foreground/55 focus:outline-none focus:border-foreground;
 }
 
 /* Genome (DNA) loader — CSS only. Paints with `--ink`, defaulting to
@@ -257,3 +277,45 @@ body {
 }
 
 
+
+/* Landing page voice bars: a slow, calm breathing so the hero feels alive. */
+.landing-bar {
+  transform-origin: center;
+  animation: landingBreathe 1.8s ease-in-out infinite;
+}
+
+@keyframes landingBreathe {
+  0%, 100% { transform: scaleY(1); }
+  50% { transform: scaleY(0.55); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .landing-bar { animation: none; }
+}
+
+/* Landing playback: bubbles rise in, bars dance while she talks, the check pops. */
+.playback-in {
+  animation: playbackIn 420ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+@keyframes playbackIn {
+  from { opacity: 0; transform: translateY(10px) scale(0.98); }
+  to { opacity: 1; transform: none; }
+}
+.playback-talk {
+  transform-origin: center;
+  animation: playbackTalk 0.42s ease-in-out infinite alternate;
+}
+@keyframes playbackTalk {
+  from { transform: scaleY(0.45); }
+  to { transform: scaleY(1); }
+}
+.playback-pop {
+  animation: playbackPop 500ms cubic-bezier(0.34, 1.56, 0.64, 1) both;
+}
+@keyframes playbackPop {
+  0% { transform: scale(0.4); }
+  100% { transform: scale(1); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .playback-in, .playback-talk, .playback-pop { animation: none; }
+}

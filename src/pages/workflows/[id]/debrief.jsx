@@ -8,10 +8,10 @@ import { ArrowLeft, ArrowRight, CheckCircle2, Layers, Sparkles, RefreshCw } from
 import { toast } from "sonner";
 import { api } from "@/lib/utils";
 import { useLiveSession } from "@/lib/useLiveSession";
-import { Logo } from "@/components/Logo";
+import { useDebriefTools } from "@/lib/useDebriefTools";
+import StageRail from "@/components/ui/StageRail";
 import WorkMapTimeline from "@/components/map/WorkMapTimeline";
 import AgentPanel from "@/components/voice/AgentPanel";
-import { useDebriefTools } from "@/lib/useDebriefTools";
 
 export default function DebriefPage() {
   const { query, push } = useRouter();
@@ -34,16 +34,19 @@ export default function DebriefPage() {
   const workflow = data?.workflow;
   const workMap = data?.workMap;
 
-  // The interviewer's debrief tools: save answers and the teach-back, then
-  // build the final map. Reload after each so the map and questions update.
+  // The interviewer's debrief tools (resolve_question, confirm_teach_back).
+  // Without them the voice session ends the moment she calls one.
   const clientTools = useDebriefTools({
     sessionId: session?._id,
     workflowId: workflow?._id,
     getAt,
     onChange: (e) => {
-      if (e.type === "map_finalized") toast.success("Work Map confirmed and published");
-      if (e.type === "map_failed") toast.error(e.error);
-      loadData();
+      if (e.type === "question_resolved" || e.type === "teach_back_confirmed") loadData();
+      if (e.type === "map_finalized") {
+        loadData();
+        toast.success("Work Map confirmed");
+      }
+      if (e.type === "map_failed") toast.error(`Work Map build failed: ${e.error}`);
     },
   });
 
@@ -64,15 +67,12 @@ export default function DebriefPage() {
   return (
     <div className="min-h-screen bg-background paper-grid text-foreground">
       {/* Editorial Header */}
-      <header className="border-b border-border bg-card/80 backdrop-blur px-6 py-4 flex items-center justify-between">
+      <header className="border-b border-border bg-card/80 backdrop-blur px-6 py-3 flex flex-wrap gap-3 items-center justify-between">
         <div className="flex items-center gap-4">
           <Link href={`/workflows/${workflowId}`} className="text-muted-foreground hover:text-foreground">
             <ArrowLeft className="h-4 w-4" />
           </Link>
-          <Logo className="text-lg" />
-          <span className="text-xs uppercase tracking-widest px-2 py-0.5 rounded bg-primary/10 text-primary font-mono font-medium">
-            Stage 02 · Debrief &amp; Work Map Synthesis
-          </span>
+          <StageRail workflowId={workflowId} current="debrief" done={1} />
         </div>
         <div className="flex items-center gap-4 text-xs font-mono">
           <span className="text-muted-foreground">
@@ -80,9 +80,9 @@ export default function DebriefPage() {
           </span>
           <Link
             href={`/workflows/${workflowId}/teach`}
-            className="px-3.5 py-1.5 rounded bg-primary text-white font-medium hover:bg-primary/90 transition shadow-sm inline-flex items-center gap-1.5"
+            className="btn btn-primary gap-1.5 font-sans"
           >
-            Open Voice Tutor (Stage 03) <ArrowRight className="h-3.5 w-3.5" />
+            Go to Teach <ArrowRight className="h-3.5 w-3.5" />
           </Link>
         </div>
       </header>
@@ -118,10 +118,10 @@ export default function DebriefPage() {
         <section className="lg:col-span-5 space-y-6">
           {session ? (
             <AgentPanel
-              clientTools={clientTools}
               sessionId={session._id}
               getAt={getAt}
               controlRef={controlRef}
+              clientTools={clientTools}
               title="Spoken Debrief &amp; Teach-Back"
               subtitle="The apprentice asks about unresolved edge cases, then explains the procedure back for expert confirmation."
             />
