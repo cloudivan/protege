@@ -6,7 +6,7 @@ import { ArrowRight, Check, Lock, Pause } from "lucide-react";
 import TutorPlayback from "@/components/landing/TutorPlayback";
 
 const ACCENT = "#FF5A1F";
-const DEMO_HREF = "/workflows/demo/teach";
+const EXPLORE_HREF = "/workflows";
 
 function Bars({ size = "lg" }) {
   const heights = size === "lg" ? [16, 40, 64, 36, 16] : [8, 18, 12];
@@ -63,13 +63,13 @@ export default function Home() {
             </p>
             <div className="flex flex-wrap items-center gap-5">
               <Link
-                href={DEMO_HREF}
+                href={EXPLORE_HREF}
                 className="inline-flex min-h-[52px] items-center gap-2.5 rounded-xl bg-[#0F172A] px-6 text-[17px] font-medium text-white transition-colors hover:bg-[#1E293B]"
               >
-                Talk to the tutor <ArrowRight className="h-[18px] w-[18px]" />
+                Explore workflows <ArrowRight className="h-[18px] w-[18px]" />
               </Link>
               <span className="font-mono text-[13px] text-[#64748B]">
-                Live voice, right in your browser
+                Taught by senior doctors, ready to learn
               </span>
             </div>
           </section>

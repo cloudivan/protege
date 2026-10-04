@@ -1,5 +1,6 @@
 import dbConnect from "@/lib/dbConnect";
 import Workflow from "@/backend/models/workflow";
+import WorkMap from "@/backend/models/workMap";
 import { profileForUseCase } from "@/backend/services/useCase";
 
 // POST { title, expertName, useCase }
@@ -37,8 +38,32 @@ export default async function handler(req, res) {
 
   try {
     await dbConnect();
+    // GET -> { workflows } newest first, each with `author` (the senior doctor
+    // who taught it), its Work Map size and whether it is ready to learn.
     if (req.method === "GET") {
-      const workflows = await Workflow.find().sort({ createdAt: -1 }).lean();
+      const list = await Workflow.find().sort({ createdAt: -1 }).lean();
+      const maps = await WorkMap.find({ _id: { $in: list.map((w) => w.workMapId).filter(Boolean) } })
+        .select("steps.isJudgmentCall steps.guardrails.kind confirmedAt version")
+        .lean();
+      const byId = new Map(maps.map((m) => [String(m._id), m]));
+      const workflows = list.map((w) => {
+        const m = w.workMapId ? byId.get(String(w.workMapId)) : null;
+        const steps = m?.steps || [];
+        return {
+          ...w,
+          author: w.expertName || null,
+          map: m
+            ? {
+                steps: steps.length,
+                judgmentCalls: steps.filter((s) => s.isJudgmentCall).length,
+                guardrails: steps.reduce((n, s) => n + (s.guardrails?.length || 0), 0),
+                confirmed: Boolean(m.confirmedAt),
+              }
+            : null,
+          // Ready to learn once the senior doctor confirmed the Work Map.
+          ready: Boolean(m?.confirmedAt && steps.length),
+        };
+      });
       return res.status(200).json({ workflows });
     }
     if (req.method === "POST") {
