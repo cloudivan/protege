@@ -9,6 +9,7 @@ import { toast } from "sonner";
 import { api } from "@/lib/utils";
 import { useLiveSession } from "@/lib/useLiveSession";
 import { usePauseDetector } from "@/lib/usePauseDetector";
+import { useQuestionPlanner } from "@/lib/useQuestionPlanner";
 import StageRail from "@/components/ui/StageRail";
 import ScreenShare from "@/components/capture/ScreenShare";
 import EventFeed from "@/components/capture/EventFeed";
@@ -24,6 +25,7 @@ export default function CapturePage() {
   const shareRef = useRef(null);
   const [events, setEvents] = useState([]);
   const [sharing, setSharing] = useState(false);
+  const [finishing, setFinishing] = useState(false);
 
   useEffect(() => {
     if (workflowId) {
@@ -34,10 +36,10 @@ export default function CapturePage() {
   }, [workflowId]);
 
   const send = (text) => controlRef.current?.sendContext(text);
+  // At a pause the backend planner picks the one question worth asking (or none).
+  const { onPause } = useQuestionPlanner({ sessionId: session?._id, getAt, prompt: (t) => controlRef.current?.prompt(t) });
   const { markActivity } = usePauseDetector({
-    onPause: () => {
-      send("PAUSE");
-    },
+    onPause,
     enabled: Boolean(session) && sharing,
   });
 
@@ -52,12 +54,18 @@ export default function CapturePage() {
     [markActivity],
   );
 
+  // The debrief needs the draft Work Map: its open questions are what the
+  // interviewer asks about (POST /api/workflows/[id]/map, see docs/API.md).
   const proceedToDebrief = async () => {
+    setFinishing(true);
     try {
       controlRef.current?.end();
+      await api(`/api/workflows/${workflowId}/map`, { method: "POST", body: {} });
       push(`/workflows/${workflowId}/debrief`);
     } catch (e) {
       toast.error(e.message);
+    } finally {
+      setFinishing(false);
     }
   };
 
@@ -81,9 +89,10 @@ export default function CapturePage() {
           <button
             type="button"
             onClick={proceedToDebrief}
-            className="btn btn-primary gap-1.5 font-sans"
+            disabled={finishing}
+            className="btn btn-primary gap-1.5 font-sans disabled:opacity-60"
           >
-            Finish &amp; Debrief <ArrowRight className="h-3.5 w-3.5" />
+            {finishing ? "Building Work Map…" : <>Finish &amp; Debrief <ArrowRight className="h-3.5 w-3.5" /></>}
           </button>
         </div>
       </header>
@@ -92,18 +101,9 @@ export default function CapturePage() {
       <main className="max-w-7xl mx-auto px-6 py-8 grid grid-cols-1 lg:grid-cols-12 gap-8">
         {/* Left Column: Screen Share & Event Feed */}
         <section className="lg:col-span-7 space-y-6">
-          <div className="flex items-center justify-between bg-muted/40 p-3 rounded border border-border text-xs">
-            <span className="text-muted-foreground">
-              Testing locally without an external app?
-            </span>
-            <Link
-              href="/sandbox/erp"
-              target="_blank"
-              className="font-mono text-primary hover:underline inline-flex items-center gap-1"
-            >
-              Open Sandbox ERP in New Tab <ExternalLink className="h-3 w-3" />
-            </Link>
-          </div>
+          <p className="bg-muted/40 p-3 rounded border border-border text-xs text-muted-foreground">
+            Share the window of the system you work in. Use test or fictional patients only.
+          </p>
 
           {session ? (
             <ScreenShare

@@ -39,7 +39,7 @@ const LLM = "claude-sonnet-4-6";
 
 // Calm, patient voice on the expressive v3 conversational model (the brief
 // asks for Expressive Mode). Same voice for both roles: the apprentice that
-// learned from the expert is audibly the one teaching the new hire.
+// learned from the expert is audibly the one teaching the junior doctor.
 const TTS = {
   voice_id: "cgSgspJ2msm6clMCkdW9",
   model_id: "eleven_v3_conversational",
@@ -72,7 +72,7 @@ const interviewerAgent = {
   },
 };
 
-// Tutor (Module 3). Watches the new hire's screen via contextual updates and
+// Tutor (Module 3). Watches the junior doctor's screen via contextual updates and
 // steps in on "ALERT" (server-side guardrail check) before a wrong save.
 const tutorAgent = {
   name: "Protégé · Tutor",
@@ -82,7 +82,7 @@ const tutorAgent = {
     language_presets: LANGUAGES,
     agent: {
       first_message:
-        "Hi, I'm Protégé. I learned this task from {{expert_name}}. Open the first invoice whenever you're ready, I'll be right here.",
+        "Hi, I'm Protégé. I learned this workflow from {{expert_name}}. We'll work through a practice case together, step by step.",
       prompt: {
         prompt: TUTOR_PROMPT,
         llm: LLM,

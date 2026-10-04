@@ -20,7 +20,7 @@ export default async function handler(req, res) {
         _id: "demo-session",
         workflowId: "demo",
         kind: kind || "teach",
-        participantName: participantName || "Lena (new hire)",
+        participantName: participantName || "Learner",
         status: "pending",
         transcript: [],
         events: [],
@@ -45,7 +45,7 @@ export default async function handler(req, res) {
     await workflow.save();
     return res.status(201).json({ session });
   } catch (error) {
-    console.error("sessions error:", error);
-    return res.status(500).json({ error: error.message });
+    if (!error.status) console.error("sessions error:", error);
+    return res.status(error.status || 500).json({ error: error.message, ...(error.needsTopic && { needsTopic: true }) });
   }
 }

@@ -2,25 +2,21 @@ import dbConnect from "@/lib/dbConnect";
 import Workflow from "@/backend/models/workflow";
 import Session from "@/backend/models/session";
 import WorkMap from "@/backend/models/workMap";
-import { DEMO_ID, DEMO_WORKFLOW, DEMO_WORK_MAP, ensureDemoWorkflow } from "@/backend/services/demoWorkflow";
+import { DEMO_ID, ensureDemoWorkflow, generateDemoWorkflow } from "@/backend/services/demoWorkflow";
 
+export const config = { maxDuration: 60 };
+
+// GET    -> { workflow, sessions, workMap }   ("demo" -> 404 { needsTopic } until generated)
+// PATCH  { title?, expertName?, status? }
+// POST   /api/workflows/demo { topic }       generates the demo from a clinical topic
 export default async function handler(req, res) {
   let { id } = req.query;
-
-  // No database: static demo so the page is still browsable.
-  if (!process.env.MONGODB_URI) {
-    if (req.method === "GET") {
-      return res.status(200).json({
-        workflow: DEMO_WORKFLOW,
-        sessions: [],
-        workMap: DEMO_WORK_MAP,
-      });
-    }
-  }
-
   try {
     await dbConnect();
-    // "demo" is the real demo workflow in Mongo (created on first use).
+    if (id === DEMO_ID && req.method === "POST") {
+      const workflow = await generateDemoWorkflow(req.body?.topic, req.body?.expertName);
+      return res.status(201).json({ workflow });
+    }
     if (id === DEMO_ID) id = (await ensureDemoWorkflow())._id;
     if (req.method === "GET") {
       const workflow = await Workflow.findById(id).lean();
@@ -40,7 +36,7 @@ export default async function handler(req, res) {
     }
     return res.status(405).json({ error: "Method not allowed" });
   } catch (error) {
-    console.error("workflows/[id] error:", error);
-    return res.status(500).json({ error: error.message });
+    if (!error.status) console.error("workflows/[id] error:", error);
+    return res.status(error.status || 500).json({ error: error.message, ...(error.needsTopic && { needsTopic: true }) });
   }
 }
