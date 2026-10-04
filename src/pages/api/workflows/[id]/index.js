@@ -14,7 +14,7 @@ export default async function handler(req, res) {
   try {
     await dbConnect();
     if (id === DEMO_ID && req.method === "POST") {
-      const workflow = await generateDemoWorkflow(req.body?.topic);
+      const workflow = await generateDemoWorkflow(req.body?.topic, req.body?.expertName);
       return res.status(201).json({ workflow });
     }
     if (id === DEMO_ID) id = (await ensureDemoWorkflow())._id;

@@ -9,6 +9,7 @@ import { api } from "@/lib/utils";
 import { Loader } from "@/components/ui/Loader";
 
 const ALL = "__all__";
+const DEMO_OID = "000000000000000000000de0"; // services/demoWorkflow.js
 
 function WorkflowCard({ w }) {
   return (
@@ -19,7 +20,11 @@ function WorkflowCard({ w }) {
             <UserRound className="h-3 w-3" /> {w.author}
           </span>
         )}
-        {w.simulated && <span className="rounded-full bg-primary/10 px-2.5 py-0.5 text-primary">Demo</span>}
+        {w.simulated && (
+          <span className="rounded-full bg-primary/10 px-2.5 py-0.5 text-primary" title="Simulated senior doctor and fictional patients">
+            {w._id === DEMO_OID ? "Demo" : "Sample"}
+          </span>
+        )}
         <span className={`ml-auto rounded-full px-2.5 py-0.5 ${w.ready ? "bg-success-500/10 text-success-700" : "bg-muted text-muted-foreground"}`}>
           {w.ready ? "Ready to learn" : "Being recorded"}
         </span>
